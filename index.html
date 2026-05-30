@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เป้าหมายการฝึกอบรม</title>
+    <!-- Tailwind CSS สำหรับตกแต่ง -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome สำหรับไอคอน (แทน Lucide ใน React) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .hidden-safely { display: none !important; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="min-h-screen p-4 md:p-6">
+        <div class="max-w-6xl mx-auto space-y-6">
+            
+            <!-- Header Section -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-chart-simple text-blue-600"></i>
+                        เป้าหมายการฝึกอบรม
+                    </h1>
+                    <p class="text-slate-500 mt-1 text-sm">สำนักงานพัฒนาฝีมือแรงงานลพบุรี</p>
+                </div>
+                
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                    <!-- Search Box -->
+                    <div class="relative w-full sm:w-64 md:w-80">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <i class="fa-solid fa-search text-slate-400"></i>
+                        </div>
+                        <input
+                            type="text"
+                            id="searchInput"
+                            placeholder="ค้นหา โครงการ, หลักสูตร, บุคคล..."
+                            class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    <!-- Add Project Button -->
+                    <button 
+                        onclick="openModal('addProject')"
+                        class="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shrink-0"
+                    >
+                        <i class="fa-solid fa-plus"></i> เพิ่มโครงการ
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Summary Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="kpiContainer">
+                <!-- KPI cards will be rendered here -->
+            </div>
+
+            <!-- Main Content: Hierarchical List -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 bg-slate-100 border-b border-slate-200 font-semibold text-slate-700 flex justify-between items-center">
+                    <span>รายการโครงการ (Projects)</span>
+                    <span id="projectCountBadge" class="text-sm font-normal bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                        กำลังโหลดข้อมูล...
+                    </span>
+                </div>
+
+                <div class="divide-y divide-slate-100" id="projectListContainer">
+                    <!-- Project List will be rendered here -->
+                    <div class="p-12 text-center text-slate-500">
+                        <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-500 mb-4"></i>
+                        <p>กำลังเชื่อมต่อฐานข้อมูล...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Form (Hidden by default) -->
+    <div id="formModal" class="hidden-safely fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
+                <h3 id="modalTitle" class="text-lg font-bold text-slate-800">หัวข้อ</h3>
+                <button onclick="closeModal()" class="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <form id="dataForm" class="p-5 space-y-4">
+                <input type="hidden" id="formType">
+                <input type="hidden" id="targetProjectId">
+                <input type="hidden" id="targetActivityId">
+                <input type="hidden" id="targetCourseId">
+
+                <!-- Dynamic inputs will be inserted here by JS -->
+                <div id="modalBody" class="space-y-4"></div>
+
+                <div class="pt-4 flex justify-end gap-2 border-t border-slate-100">
+                    <button type="button" onclick="closeModal()" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                        ยกเลิก
+                    </button>
+                    <button type="submit" id="saveBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        บันทึกข้อมูล
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (Modular Version) & Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+        import { 
+            getFirestore, collection, onSnapshot, addDoc, updateDoc, doc 
+        } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+
+        // Firebase Configuration ของคุณ
+        const firebaseConfig = {
+            apiKey: "AIzaSyAWXcS3UGqNLzFsNk0PgCTIveeLIkSOYTs",
+            authDomain: "edoblock-51e6c.firebaseapp.com",
+            projectId: "edoblock-51e6c",
+            storageBucket: "edoblock-51e6c.firebasestorage.app",
+            messagingSenderId: "426632152384",
+            appId: "1:426632152384:web:73d4c59491c289f206a6a5",
+            measurementId: "G-60F8TZ1NHM"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Variables for Canvas Firebase Strict Paths
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const getProjectsCol = () => collection(db, 'artifacts', appId, 'public', 'data', 'projects');
+        const getProjectDoc = (pId) => doc(db, 'artifacts', appId, 'public', 'data', 'projects', pId);
+
+        // State variables
+        let appData = [];
+        let searchTerm = '';
+        let expandedProjects = new Set();
+        let expandedActivities = new Set();
+        let currentUser = null;
+        let isListenerInit = false;
+
+        // ----------------------------------------------------
+        // Authentication & Real-time Database Listener
+        // ----------------------------------------------------
+        
+        async function initAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    try {
+                        // พยายามล็อกอินด้วย Token ของระบบ Canvas
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (tokenError) {
+                        console.warn("พบความไม่ตรงกันของ Token (ใช้ Firebase Config ส่วนตัว) กำลังสลับไปใช้ Anonymous Login แทน...");
+                        // หากมี Error จาก Token ไม่ตรงกับ Firebase Project (เช่น ใส่ Config ของตัวเอง) 
+                        // ให้ Fallback กลับไปล็อกอินแบบไม่ระบุตัวตนแทน
+                        await signInAnonymously(auth);
+                    }
+                } else {
+                    // หากไม่มี Token (เช่น นำไปรันบน Github Pages ปกติ) ให้ล็อกอินแบบไม่ระบุตัวตน
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth init error:", error);
+                alert("เกิดข้อผิดพลาดในการยืนยันตัวตนฐานข้อมูล: " + error.message);
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            if (user) {
+                initDBListener();
+            }
+        });
+
+        initAuth();
+
+        function initDBListener() {
+            if (isListenerInit || !currentUser) return;
+            isListenerInit = true;
+            
+            onSnapshot(getProjectsCol(), (snapshot) => {
+                appData = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    projectName: doc.data().projectName || 'ไม่มีชื่อโครงการ',
+                    activities: doc.data().activities || []
+                }));
+                
+                // Auto expand first projects on initial load if sets are empty
+                if (expandedProjects.size === 0 && appData.length > 0) {
+                    appData.forEach(p => expandedProjects.add(p.id));
+                    appData.forEach(p => p.activities.forEach(a => expandedActivities.add(a.id)));
+                }
+
+                renderUI();
+            }, (error) => {
+                console.error("Firebase Error:", error);
+                
+                let errorMsg = error.message;
+                if (error.message.includes("permissions")) {
+                    errorMsg = `
+                        <div class="bg-red-50 p-4 rounded-lg border border-red-200 mt-4 mx-auto max-w-lg shadow-sm">
+                            <p class="font-bold text-red-600 mb-3 text-lg">❌ สิทธิ์การเข้าถึงฐานข้อมูลถูกปฏิเสธ</p>
+                            <div class="text-sm text-slate-700 text-left leading-relaxed">
+                                <p class="font-semibold mb-1">เกิดปัญหาการเข้าถึงเส้นทาง (Permission Denied):</p>
+                                <p>ระบบได้อัปเดตเส้นทางฐานข้อมูลและระบบยืนยันตัวตน (Authentication) แล้ว แต่หากยังพบข้อผิดพลาดนี้ โปรดตรวจสอบการตั้งค่า Firebase Console ของคุณอีกครั้งว่าครอบคลุมเส้นทางที่ระบบร้องขอแล้วหรือไม่</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('projectListContainer').innerHTML = `
+                    <div class="p-8 text-center text-red-500">
+                        ${error.message.includes("permissions") ? errorMsg : `<p class="font-bold">ไม่สามารถเชื่อมต่อฐานข้อมูลได้</p><p class="text-sm mt-2">${error.message}</p>`}
+                    </div>
+                `;
+            });
+        }
+
+        // ----------------------------------------------------
+        // Search & Filter Logic
+        // ----------------------------------------------------
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchTerm = e.target.value.toLowerCase();
+            renderUI();
+        });
+
+        function getFilteredData() {
+            if (!searchTerm.trim()) return appData;
+            
+            return appData.map(project => {
+                const projectMatch = project.projectName.toLowerCase().includes(searchTerm);
+                
+                const filteredActivities = project.activities.map(activity => {
+                    const activityMatch = activity.activityName.toLowerCase().includes(searchTerm);
+                    const filteredCourses = activity.courses ? activity.courses.filter(course => 
+                        course.courseName.toLowerCase().includes(searchTerm) ||
+                        course.courseCode.toLowerCase().includes(searchTerm) ||
+                        course.responsiblePerson.toLowerCase().includes(searchTerm)
+                    ) : [];
+
+                    if (activityMatch || filteredCourses.length > 0 || projectMatch) {
+                        return { ...activity, courses: filteredCourses.length > 0 ? filteredCourses : (activity.courses || []) };
+                    }
+                    return null;
+                }).filter(Boolean);
+
+                if (projectMatch || filteredActivities.length > 0) {
+                    return { ...project, activities: filteredActivities };
+                }
+                return null;
+            }).filter(Boolean);
+        }
+
+        // ----------------------------------------------------
+        // Rendering UI
+        // ----------------------------------------------------
+        function renderUI() {
+            const filteredData = getFilteredData();
+            
+            // 1. Render KPIs
+            let tAct = 0, tCour = 0;
+            let staff = new Set();
+            appData.forEach(p => {
+                tAct += p.activities.length;
+                p.activities.forEach(a => {
+                    tCour += (a.courses || []).length;
+                    (a.courses || []).forEach(c => {
+                        if(c.responsiblePerson) staff.add(c.responsiblePerson);
+                    });
+                });
+            });
+
+            document.getElementById('kpiContainer').innerHTML = `
+                ${createKpiCard('โครงการทั้งหมด', appData.length, 'fa-folder-open text-blue-500')}
+                ${createKpiCard('กิจกรรมทั้งหมด', tAct, 'fa-briefcase text-emerald-500')}
+                ${createKpiCard('หลักสูตรทั้งหมด', tCour, 'fa-book-open text-amber-500')}
+                ${createKpiCard('บุคลากร', staff.size, 'fa-users text-purple-500')}
+            `;
+
+            // 2. Render List
+            document.getElementById('projectCountBadge').innerText = `พบ ${filteredData.length} โครงการ`;
+            const listContainer = document.getElementById('projectListContainer');
+
+            if (filteredData.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="p-12 text-center text-slate-500">
+                        <i class="fa-solid fa-search text-4xl text-slate-300 mb-4"></i>
+                        <p class="text-lg font-medium">ไม่พบข้อมูลที่คุณค้นหา หรือยังไม่มีข้อมูล</p>
+                    </div>`;
+                return;
+            }
+
+            let htmlStr = '';
+            filteredData.forEach(project => {
+                const isPExp = expandedProjects.has(project.id);
+                htmlStr += `
+                    <div class="p-2">
+                        <!-- Project Header -->
+                        <div class="flex items-center gap-2 p-3 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors group" onclick="toggleProject('${project.id}')">
+                            <i class="fa-solid ${isPExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-slate-400 w-4"></i>
+                            <i class="fa-solid fa-folder-open text-xl text-blue-600 flex-shrink-0"></i>
+                            <h2 class="text-lg font-bold text-slate-800 leading-tight">${project.projectName}</h2>
+                            
+                            <button onclick="event.stopPropagation(); openModal('addActivity', '${project.id}')" class="ml-auto flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-2.5 py-1.5 rounded-md border border-emerald-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <i class="fa-solid fa-plus"></i> เพิ่มกิจกรรม
+                            </button>
+                        </div>
+
+                        <!-- Activities Container -->
+                        ${isPExp ? `
+                        <div class="ml-8 mt-1 border-l-2 border-slate-100 pl-4 space-y-3 pb-2">
+                            ${project.activities.length === 0 ? `<div class="p-4 text-center text-sm text-slate-400 border border-dashed border-slate-200 rounded-lg bg-slate-50/50">ยังไม่มีกิจกรรม คลิก "เพิ่มกิจกรรม" เพื่อเริ่ม</div>` : ''}
+                            
+                            ${project.activities.map(activity => {
+                                const isAExp = expandedActivities.has(activity.id);
+                                const courses = activity.courses || [];
+                                return `
+                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+                                    <div class="flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 rounded-t-lg cursor-pointer transition-colors group" onclick="toggleActivity('${activity.id}')">
+                                        <i class="fa-solid ${isAExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-slate-400 w-4"></i>
+                                        <i class="fa-solid fa-briefcase text-emerald-600 flex-shrink-0"></i>
+                                        <h3 class="font-semibold text-slate-700">${activity.activityName}</h3>
+                                        <button onclick="event.stopPropagation(); openModal('addCourse', '${project.id}', '${activity.id}')" class="ml-auto flex items-center gap-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-100 px-2.5 py-1.5 rounded-md border border-amber-200 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <i class="fa-solid fa-plus"></i> เพิ่มหลักสูตร
+                                        </button>
+                                    </div>
+                                    
+                                    ${isAExp ? `
+                                    <div class="p-0 border-t border-slate-100 overflow-x-auto">
+                                        <table class="w-full text-sm text-left">
+                                            <thead class="text-xs text-slate-500 uppercase bg-slate-50/50 border-b border-slate-200">
+                                                <tr>
+                                                    <th class="px-4 py-3">รหัส</th>
+                                                    <th class="px-4 py-3">ชื่อหลักสูตร</th>
+                                                    <th class="px-4 py-3">ผู้รับผิดชอบ</th>
+                                                    <th class="px-4 py-3">วันเวลาที่เปิดฝึก</th>
+                                                    <th class="px-4 py-3">สถานะ</th>
+                                                    <th class="px-4 py-3 text-center">จัดการ</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-slate-100">
+                                                ${courses.length === 0 ? `<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400 bg-slate-50/50">ยังไม่มีหลักสูตร</td></tr>` : ''}
+                                                
+                                                ${courses.map(course => `
+                                                <tr class="hover:bg-slate-50 transition-colors">
+                                                    <td class="px-4 py-3 font-mono text-slate-500">${course.courseCode}</td>
+                                                    <td class="px-4 py-3 font-medium text-slate-800"><i class="fa-solid fa-book-open text-slate-400 mr-2"></i>${course.courseName}</td>
+                                                    <td class="px-4 py-3">
+                                                        <span class="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-md border border-blue-100">
+                                                            <i class="fa-solid fa-user text-xs"></i> ${course.responsiblePerson}
+                                                        </span>
+                                                    </td>
+                                                    <td class="px-4 py-3 text-slate-600"><i class="fa-regular fa-calendar text-slate-400 mr-1"></i> ${course.trainingDate}</td>
+                                                    <td class="px-4 py-3">${renderStatusBadge(course.status)}</td>
+                                                    <td class="px-4 py-3 text-center">
+                                                        <button onclick="openModal('editCourse', '${project.id}', '${activity.id}', '${course.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-colors" title="แก้ไข">
+                                                            <i class="fa-solid fa-pen"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>`).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>` : ''}
+                                </div>`;
+                            }).join('')}
+                        </div>` : ''}
+                    </div>
+                `;
+            });
+
+            listContainer.innerHTML = htmlStr;
+        }
+
+        // ----------------------------------------------------
+        // Global UI Helpers & Event Bindings
+        // ----------------------------------------------------
+        function createKpiCard(title, value, iconClass) {
+            return `
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex items-center gap-4">
+                <div class="p-3 bg-slate-50 rounded-lg"><i class="fa-solid ${iconClass} text-xl w-6 text-center"></i></div>
+                <div>
+                    <p class="text-sm text-slate-500 font-medium">${title}</p>
+                    <p class="text-2xl font-bold text-slate-800">${value}</p>
+                </div>
+            </div>`;
+        }
+
+        function renderStatusBadge(status) {
+            let colors = 'bg-slate-100 text-slate-700 border-slate-200';
+            if (status === 'กำลังดำเนินการ') colors = 'bg-amber-50 text-amber-700 border-amber-200';
+            else if (status === 'เสร็จสิ้น') colors = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+            else if (status === 'รอเปิดอบรม') colors = 'bg-purple-50 text-purple-700 border-purple-200';
+            return `<span class="px-2 py-1 text-[11px] rounded-full border font-medium whitespace-nowrap ${colors}">${status}</span>`;
+        }
+
+        window.toggleProject = (id) => {
+            expandedProjects.has(id) ? expandedProjects.delete(id) : expandedProjects.add(id);
+            renderUI();
+        };
+
+        window.toggleActivity = (id) => {
+            expandedActivities.has(id) ? expandedActivities.delete(id) : expandedActivities.add(id);
+            renderUI();
+        };
+
+        // ----------------------------------------------------
+        // Modal & Form Logic
+        // ----------------------------------------------------
+        window.openModal = (type, pId = '', aId = '', cId = '') => {
+            document.getElementById('formModal').classList.remove('hidden-safely');
+            document.getElementById('formType').value = type;
+            document.getElementById('targetProjectId').value = pId;
+            document.getElementById('targetActivityId').value = aId;
+            document.getElementById('targetCourseId').value = cId;
+            
+            const mBody = document.getElementById('modalBody');
+            const title = document.getElementById('modalTitle');
+            
+            if (type === 'addProject') {
+                title.innerText = 'เพิ่มโครงการใหม่';
+                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อโครงการ</label><input required id="inp_pName" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"></div>`;
+            } else if (type === 'addActivity') {
+                title.innerText = 'เพิ่มกิจกรรมใหม่';
+                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อกิจกรรม</label><input required id="inp_aName" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-500"></div>`;
+            } else if (type === 'addCourse' || type === 'editCourse') {
+                title.innerText = type === 'addCourse' ? 'เพิ่มหลักสูตรใหม่' : 'แก้ไขหลักสูตร';
+                let cData = { code: '', name: '', person: '', date: '', status: 'รอเปิดอบรม' };
+                
+                // Fetch existing data for edit
+                if (type === 'editCourse') {
+                    const p = appData.find(x => x.id === pId);
+                    const a = p.activities.find(x => x.id === aId);
+                    const c = a.courses.find(x => x.id === cId);
+                    cData = { code: c.courseCode, name: c.courseName, person: c.responsiblePerson, date: c.trainingDate, status: c.status };
+                }
+
+                mBody.innerHTML = `
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="col-span-1"><label class="block text-sm font-medium mb-1">รหัส</label><input required id="inp_cCode" value="${cData.code}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                        <div class="col-span-2"><label class="block text-sm font-medium mb-1">ชื่อหลักสูตร</label><input required id="inp_cName" value="${cData.name}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                    </div>
+                    <div><label class="block text-sm font-medium mb-1">ผู้รับผิดชอบ</label><input required id="inp_cPerson" value="${cData.person}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-sm font-medium mb-1">วัน/เวลาที่เปิดฝึก</label><input required id="inp_cDate" value="${cData.date}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500"></div>
+                    <div><label class="block text-sm font-medium mb-1">สถานะ</label>
+                        <select id="inp_cStatus" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white">
+                            <option value="รอเปิดอบรม" ${cData.status==='รอเปิดอบรม'?'selected':''}>รอเปิดอบรม</option>
+                            <option value="กำลังดำเนินการ" ${cData.status==='กำลังดำเนินการ'?'selected':''}>กำลังดำเนินการ</option>
+                            <option value="เสร็จสิ้น" ${cData.status==='เสร็จสิ้น'?'selected':''}>เสร็จสิ้น</option>
+                        </select>
+                    </div>`;
+            }
+        };
+
+        window.closeModal = () => {
+            document.getElementById('formModal').classList.add('hidden-safely');
+            document.getElementById('dataForm').reset();
+        };
+
+        // ----------------------------------------------------
+        // Handle Form Submit to Firebase
+        // ----------------------------------------------------
+        document.getElementById('dataForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!currentUser) {
+                alert("กรุณารอระบบยืนยันตัวตนสักครู่...");
+                return;
+            }
+
+            const type = document.getElementById('formType').value;
+            const pId = document.getElementById('targetProjectId').value;
+            const aId = document.getElementById('targetActivityId').value;
+            const cId = document.getElementById('targetCourseId').value;
+            
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...';
+            saveBtn.disabled = true;
+
+            try {
+                if (type === 'addProject') {
+                    await addDoc(getProjectsCol(), {
+                        projectName: document.getElementById('inp_pName').value,
+                        activities: []
+                    });
+                } 
+                else if (type === 'addActivity') {
+                    const proj = appData.find(x => x.id === pId);
+                    const newAct = {
+                        id: 'A-' + Date.now(),
+                        activityName: document.getElementById('inp_aName').value,
+                        courses: []
+                    };
+                    await updateDoc(getProjectDoc(pId), {
+                        activities: [...proj.activities, newAct]
+                    });
+                    expandedActivities.add(newAct.id);
+                } 
+                else if (type === 'addCourse') {
+                    const proj = appData.find(x => x.id === pId);
+                    const activities = [...proj.activities];
+                    const actIndex = activities.findIndex(x => x.id === aId);
+                    
+                    if (!activities[actIndex].courses) activities[actIndex].courses = [];
+                    
+                    activities[actIndex].courses.push({
+                        id: 'C-' + Date.now(),
+                        courseCode: document.getElementById('inp_cCode').value,
+                        courseName: document.getElementById('inp_cName').value,
+                        responsiblePerson: document.getElementById('inp_cPerson').value,
+                        trainingDate: document.getElementById('inp_cDate').value,
+                        status: document.getElementById('inp_cStatus').value
+                    });
+
+                    await updateDoc(getProjectDoc(pId), { activities });
+                } 
+                else if (type === 'editCourse') {
+                    const proj = appData.find(x => x.id === pId);
+                    const activities = [...proj.activities];
+                    const actIndex = activities.findIndex(x => x.id === aId);
+                    const courseIndex = activities[actIndex].courses.findIndex(x => x.id === cId);
+                    
+                    activities[actIndex].courses[courseIndex] = {
+                        ...activities[actIndex].courses[courseIndex],
+                        courseCode: document.getElementById('inp_cCode').value,
+                        courseName: document.getElementById('inp_cName').value,
+                        responsiblePerson: document.getElementById('inp_cPerson').value,
+                        trainingDate: document.getElementById('inp_cDate').value,
+                        status: document.getElementById('inp_cStatus').value
+                    };
+
+                    await updateDoc(getProjectDoc(pId), { activities });
+                }
+                
+                closeModal();
+            } catch (error) {
+                console.error("Error saving doc:", error);
+                alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + error.message);
+            } finally {
+                saveBtn.innerHTML = 'บันทึกข้อมูล';
+                saveBtn.disabled = false;
+            }
+        });
+
+    </script>
+</body>
+</html>
