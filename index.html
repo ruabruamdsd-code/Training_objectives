@@ -16,13 +16,39 @@
     <style>
         body { font-family: 'Sarabun', sans-serif; }
         .hidden-safely { display: none !important; }
+
+        /* การตั้งค่าสำหรับการพิมพ์ (Print Styles) */
+        @media print {
+            .no-print { display: none !important; }
+            body { background-color: white !important; }
+            
+            /* บังคับให้แสดงสีพื้นหลังเมื่อพิมพ์ */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* ปรับ Layout ให้เหมาะกับกระดาษ A4 */
+            .print-block { display: block !important; }
+            .print-w-full { width: 100% !important; max-width: 100% !important; margin-bottom: 20px; }
+            .print-grid-4 { 
+                display: grid !important; 
+                grid-template-columns: repeat(4, minmax(0, 1fr)) !important; 
+                gap: 1rem !important; 
+            }
+            .print-avoid-break { page-break-inside: avoid; }
+            
+            /* ลดขนาดความสูงและช่องว่างเมื่อพิมพ์ */
+            .min-h-screen { min-height: auto !important; padding: 0 !important; }
+            .shadow-sm { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
 
     <div class="min-h-screen p-4 md:p-6">
         <!-- ขยายความกว้างเป็น max-w-[1400px] หรือ 95% เพื่อลดพื้นที่ว่างด้านข้าง -->
-        <div class="max-w-[1400px] mx-auto space-y-6">
+        <div class="max-w-[1400px] mx-auto space-y-6 print-w-full">
             
             <!-- Header Section -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -31,10 +57,10 @@
                         <i class="fa-solid fa-chart-simple text-blue-600"></i>
                         เป้าหมายการฝึกอบรม
                     </h1>
-                    <p class="text-slate-500 mt-1 text-sm">ฝ่ายพัฒนาฝีมือแรงงาน</p>
+                    <p class="text-slate-500 mt-1 text-sm">สำนักงานพัฒนาฝีมือแรงงานลพบุรี</p>
                 </div>
                 
-                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto no-print">
                     <!-- Search Box -->
                     <div class="relative w-full sm:w-64 md:w-80">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -47,6 +73,13 @@
                             class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
+                    <!-- Print Button -->
+                    <button 
+                        onclick="window.print()"
+                        class="flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm shrink-0"
+                    >
+                        <i class="fa-solid fa-print"></i> พิมพ์
+                    </button>
                     <!-- Add Project Button -->
                     <button 
                         onclick="openModal('addProject')"
@@ -57,13 +90,13 @@
                 </div>
             </div>
 
-            <!-- แบ่งเลย์เอาต์หน้าจอเป็น 2 คอลัมน์ (ซ้ายเนื้อหา 3 ส่วน, ขวากราฟ 1 ส่วน) -->
-            <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+            <!-- แบ่งเลย์เอาต์หน้าจอเป็น 2 คอลัมน์ -->
+            <div class="print-block grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
                 
                 <!-- ฝั่งซ้าย: เนื้อหาหลัก -->
-                <div class="xl:col-span-3 space-y-6">
+                <div class="xl:col-span-8 space-y-6 print-w-full">
                     <!-- KPI Summary Cards -->
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="kpiContainer">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 print-grid-4" id="kpiContainer">
                         <!-- KPI cards will be rendered here -->
                     </div>
 
@@ -86,23 +119,40 @@
                 </div>
 
                 <!-- ฝั่งขวา: Sidebar สรุปกราฟ (ใช้ sticky เพื่อให้เลื่อนตามหน้าจอ) -->
-                <div class="xl:col-span-1 space-y-6 sticky top-6">
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                        <h3 class="font-bold text-slate-800 mb-6 text-center border-b border-slate-100 pb-3">ภาพรวมสถานะการเปิดรุ่น</h3>
+                <div class="xl:col-span-4 space-y-6 sticky top-6 print-w-full print-avoid-break">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-800 text-lg mb-5 text-center border-b border-slate-100 pb-4">สถานะแยกรายไตรมาส</h3>
                         
-                        <!-- Chart Container -->
-                        <div class="relative w-48 h-48 mx-auto mb-6">
-                            <canvas id="trainingStatusChart"></canvas>
-                            <!-- ข้อความตรงกลางกราฟวงกลม -->
-                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                <span class="text-3xl font-bold text-slate-800" id="chartTotalText">0</span>
-                                <span class="text-[10px] text-slate-500 uppercase tracking-wider">รุ่นที่ฝึก</span>
+                        <!-- แถบสถานะความคืบหน้ารวม -->
+                        <div id="globalProgressContainer"></div>
+
+                        <!-- 3 Charts Grid -->
+                        <div class="grid grid-cols-2 gap-6 mt-6 print-grid-4">
+                            <!-- Q1-Q2 (รวมกันเต็มความกว้าง) -->
+                            <div class="col-span-2 text-center flex flex-col items-center print-avoid-break">
+                                <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full mb-3">ไตรมาส 1-2</span>
+                                <div class="relative w-32 h-32"><canvas id="chartQ1_2"></canvas></div>
+                                <div class="text-xs text-slate-600 font-medium mt-3 leading-relaxed" id="textQ1_2"></div>
+                            </div>
+                            <!-- Q3 -->
+                            <div class="text-center flex flex-col items-center print-avoid-break">
+                                <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full mb-3">ไตรมาส 3</span>
+                                <div class="relative w-28 h-28"><canvas id="chartQ3"></canvas></div>
+                                <div class="text-xs text-slate-600 font-medium mt-3 leading-relaxed" id="textQ3"></div>
+                            </div>
+                            <!-- Q4 -->
+                            <div class="text-center flex flex-col items-center print-avoid-break">
+                                <span class="bg-indigo-50 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full mb-3">ไตรมาส 4</span>
+                                <div class="relative w-28 h-28"><canvas id="chartQ4"></canvas></div>
+                                <div class="text-xs text-slate-600 font-medium mt-3 leading-relaxed" id="textQ4"></div>
                             </div>
                         </div>
 
                         <!-- คำอธิบายกราฟ (Legend & Details) -->
-                        <div id="chartLegend" class="space-y-3 mt-4 border-t border-slate-100 pt-4">
-                            <!-- รายละเอียดจะถูกแทรกที่นี่ด้วย JS -->
+                        <div class="flex justify-center gap-4 mt-6 border-t border-slate-100 pt-4 text-xs">
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="text-slate-600">เสร็จสิ้น</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span class="text-slate-600">กำลังดำเนินการ</span></div>
+                            <div class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-full bg-slate-200"></span><span class="text-slate-600">รอเปิดอบรม</span></div>
                         </div>
                     </div>
                 </div>
@@ -112,7 +162,7 @@
     </div>
 
     <!-- Modal Form (Hidden by default) -->
-    <div id="formModal" class="hidden-safely fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+    <div id="formModal" class="hidden-safely no-print fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
         <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all my-8">
             <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
                 <h3 id="modalTitle" class="text-lg font-bold text-slate-800">หัวข้อ</h3>
@@ -147,7 +197,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
         import { 
-            getFirestore, collection, onSnapshot, addDoc, updateDoc, doc 
+            getFirestore, collection, onSnapshot, addDoc, updateDoc, doc, deleteDoc
         } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
 
@@ -176,7 +226,9 @@
         let expandedSubActivities = new Set();
         let currentUser = null;
         let isListenerInit = false;
-        let chartInstance = null; 
+        
+        // ตัวแปรเก็บกราฟทั้ง 3 (รวม Q1 และ Q2)
+        let chartInstances = { '1-2': null, '3': null, '4': null };
 
         async function initAuth() {
             try {
@@ -276,6 +328,13 @@
             
             // ข้อมูลสำหรับกราฟ
             let statusCounts = { done: 0, active: 0, pending: 0 };
+            
+            // ข้อมูลสรุปรายไตรมาส (รวม 1-2 เข้าด้วยกัน)
+            let quarterCounts = {
+                '1-2': { courses: 0, trainees: 0, done: 0, active: 0, pending: 0 },
+                '3': { courses: 0, trainees: 0, done: 0, active: 0, pending: 0 },
+                '4': { courses: 0, trainees: 0, done: 0, active: 0, pending: 0 }
+            };
 
             appData.forEach(p => {
                 tMainAct += p.mainActivities.length;
@@ -284,28 +343,43 @@
                     (ma.subActivities || []).forEach(sa => {
                         tCour += (sa.courses || []).length;
                         (sa.courses || []).forEach(c => {
-                            // นับยอดเป้าหมายคนฝึกอบรม (รองรับข้อมูลเก่าที่ยังไม่มีฟิลด์นี้ โดยให้ค่าเริ่มต้น 20)
                             let traineesCount = c.hasOwnProperty('trainees') ? parseInt(c.trainees) || 0 : 20;
                             totalTrainees += traineesCount;
                             
-                            // นับสถานะหลักสูตร/รุ่น
-                            if(c.status === 'เสร็จสิ้น') statusCounts.done++;
-                            else if(c.status === 'กำลังดำเนินการ') statusCounts.active++;
-                            else statusCounts.pending++;
+                            // ดึงค่าไตรมาส ถ้าระบุเป็น 1 หรือ 2 ให้จับมารวมที่ 1-2
+                            let q = c.quarter || '1-2';
+                            if (q === '1' || q === '2') q = '1-2';
+                            
+                            quarterCounts[q].courses++;
+                            quarterCounts[q].trainees += traineesCount;
+                            
+                            if(c.status === 'เสร็จสิ้น') {
+                                statusCounts.done++;
+                                quarterCounts[q].done++;
+                            } else if(c.status === 'กำลังดำเนินการ') {
+                                statusCounts.active++;
+                                quarterCounts[q].active++;
+                            } else {
+                                statusCounts.pending++;
+                                quarterCounts[q].pending++;
+                            }
                         });
                     });
                 });
             });
 
+            // คำนวณจำนวนรุ่นที่เปิดไปแล้วทั้งหมด
+            let openedCourses = statusCounts.done + statusCounts.active;
+
             document.getElementById('kpiContainer').innerHTML = `
                 ${createKpiCard('โครงการทั้งหมด', appData.length, 'fa-folder-open text-blue-500')}
                 ${createKpiCard('กิจกรรมหลัก', tMainAct, 'fa-briefcase text-emerald-500')}
-                ${createKpiCard('รุ่นที่เปิดฝึก', tCour, 'fa-layer-group text-amber-500')}
+                ${createKpiCard('เปิดแล้ว / ทั้งหมด (รุ่น)', '<span class="text-blue-600">' + openedCourses + '</span><span class="text-slate-400 text-sm font-normal"> / ' + tCour + '</span>', 'fa-layer-group text-amber-500')}
                 ${createKpiCard('เป้าหมาย (คน)', totalTrainees, 'fa-users text-purple-500')}
             `;
 
-            // อัปเดตกราฟทางขวามือ
-            updateDashboardChart(statusCounts, tCour);
+            // อัปเดตกราฟแยก 3 ส่วน (Q1-2, Q3, Q4)
+            updateDashboardCharts(openedCourses, tCour, quarterCounts);
 
             document.getElementById('projectCountBadge').innerText = `พบ ${filteredData.length} โครงการ`;
             const listContainer = document.getElementById('projectListContainer');
@@ -319,15 +393,20 @@
             filteredData.forEach(project => {
                 const isPExp = expandedProjects.has(project.id);
                 htmlStr += `
-                    <div class="p-2 border-b border-slate-100 last:border-0">
+                    <div class="p-2 border-b border-slate-100 last:border-0 print-avoid-break">
                         <!-- โครงการ -->
                         <div class="flex items-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 rounded-lg cursor-pointer transition-colors group" onclick="toggleProject('${project.id}')">
-                            <i class="fa-solid ${isPExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-blue-400 w-4"></i>
+                            <i class="fa-solid ${isPExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-blue-400 w-4 no-print"></i>
                             <i class="fa-solid fa-folder-open text-xl text-blue-700 flex-shrink-0"></i>
                             <h2 class="text-lg font-bold text-slate-800 leading-tight">${project.projectName}</h2>
-                            <button onclick="event.stopPropagation(); openModal('addMainActivity', '${project.id}')" class="ml-auto flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-200 px-2.5 py-1.5 rounded-md border border-emerald-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                                <i class="fa-solid fa-plus"></i> เพิ่มกิจกรรมหลัก
-                            </button>
+                            
+                            <div class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                <button onclick="event.stopPropagation(); openModal('editProject', '${project.id}')" class="text-blue-500 hover:text-blue-700 p-1.5 rounded hover:bg-blue-200 transition-colors" title="แก้ไขโครงการ"><i class="fa-solid fa-pen"></i></button>
+                                <button onclick="event.stopPropagation(); deleteItem('project', '${project.id}')" class="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-100 transition-colors mr-1" title="ลบโครงการ"><i class="fa-solid fa-trash"></i></button>
+                                <button onclick="event.stopPropagation(); openModal('addMainActivity', '${project.id}')" class="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-700 hover:bg-emerald-200 px-2.5 py-1.5 rounded-md border border-emerald-200 shadow-sm transition-colors">
+                                    <i class="fa-solid fa-plus"></i> เพิ่มกิจกรรมหลัก
+                                </button>
+                            </div>
                         </div>
 
                         ${isPExp ? `
@@ -338,15 +417,20 @@
                                 const isMExp = expandedMainActivities.has(mainAct.id);
                                 const subActs = mainAct.subActivities || [];
                                 return `
-                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm print-avoid-break">
                                     <!-- กิจกรรมหลัก -->
                                     <div class="flex items-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 rounded-t-lg cursor-pointer transition-colors group" onclick="toggleMainActivity('${mainAct.id}')">
-                                        <i class="fa-solid ${isMExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-emerald-500 w-4"></i>
+                                        <i class="fa-solid ${isMExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-emerald-500 w-4 no-print"></i>
                                         <i class="fa-solid fa-briefcase text-emerald-700 flex-shrink-0"></i>
                                         <h3 class="font-semibold text-slate-800">[กิจกรรมหลัก] ${mainAct.mainActivityName}</h3>
-                                        <button onclick="event.stopPropagation(); openModal('addSubActivity', '${project.id}', '${mainAct.id}')" class="ml-auto flex items-center gap-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-200 px-2.5 py-1.5 rounded-md border border-amber-200 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                                            <i class="fa-solid fa-plus"></i> เพิ่มกิจกรรมย่อย
-                                        </button>
+                                        
+                                        <div class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                            <button onclick="event.stopPropagation(); openModal('editMainActivity', '${project.id}', '${mainAct.id}')" class="text-emerald-600 hover:text-emerald-800 p-1.5 rounded hover:bg-emerald-200 transition-colors" title="แก้ไขกิจกรรมหลัก"><i class="fa-solid fa-pen"></i></button>
+                                            <button onclick="event.stopPropagation(); deleteItem('mainActivity', '${project.id}', '${mainAct.id}')" class="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-100 transition-colors mr-1" title="ลบกิจกรรมหลัก"><i class="fa-solid fa-trash"></i></button>
+                                            <button onclick="event.stopPropagation(); openModal('addSubActivity', '${project.id}', '${mainAct.id}')" class="flex items-center gap-1 text-xs bg-amber-50 text-amber-700 hover:bg-amber-200 px-2.5 py-1.5 rounded-md border border-amber-200 shadow-sm transition-colors">
+                                                <i class="fa-solid fa-plus"></i> เพิ่มกิจกรรมย่อย
+                                            </button>
+                                        </div>
                                     </div>
                                     
                                     ${isMExp ? `
@@ -357,15 +441,20 @@
                                             const isSExp = expandedSubActivities.has(subAct.id);
                                             const courses = subAct.courses || [];
                                             return `
-                                            <div class="bg-white border border-slate-200 rounded-md overflow-hidden">
+                                            <div class="bg-white border border-slate-200 rounded-md overflow-hidden print-avoid-break">
                                                 <!-- กิจกรรมย่อย -->
                                                 <div class="flex items-center gap-2 p-2 px-3 bg-amber-50 hover:bg-amber-100 cursor-pointer transition-colors group" onclick="toggleSubActivity('${subAct.id}')">
-                                                    <i class="fa-solid ${isSExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-amber-500 w-4 text-xs"></i>
+                                                    <i class="fa-solid ${isSExp ? 'fa-chevron-down' : 'fa-chevron-right'} text-amber-500 w-4 text-xs no-print"></i>
                                                     <i class="fa-solid fa-list-check text-amber-600 flex-shrink-0"></i>
                                                     <h4 class="font-medium text-slate-700 text-sm">[กิจกรรมย่อย] ${subAct.subActivityName}</h4>
-                                                    <button onclick="event.stopPropagation(); openModal('addCourse', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="ml-auto flex items-center gap-1 text-[11px] bg-white text-slate-700 hover:bg-slate-100 px-2 py-1 rounded border border-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <i class="fa-solid fa-plus"></i> เพิ่มรุ่น/หลักสูตร
-                                                    </button>
+                                                    
+                                                    <div class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
+                                                        <button onclick="event.stopPropagation(); openModal('editSubActivity', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="text-amber-600 hover:text-amber-800 p-1.5 rounded hover:bg-amber-200 transition-colors" title="แก้ไขกิจกรรมย่อย"><i class="fa-solid fa-pen text-xs"></i></button>
+                                                        <button onclick="event.stopPropagation(); deleteItem('subActivity', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-100 transition-colors mr-1" title="ลบกิจกรรมย่อย"><i class="fa-solid fa-trash text-xs"></i></button>
+                                                        <button onclick="event.stopPropagation(); openModal('addCourse', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="flex items-center gap-1 text-[11px] bg-white text-slate-700 hover:bg-slate-100 px-2 py-1 rounded border border-slate-300 transition-colors">
+                                                            <i class="fa-solid fa-plus"></i> เพิ่มรุ่น/หลักสูตร
+                                                        </button>
+                                                    </div>
                                                 </div>
 
                                                 ${isSExp ? `
@@ -373,6 +462,7 @@
                                                     <table class="w-full text-sm text-left">
                                                         <thead class="text-xs text-slate-500 uppercase bg-slate-50">
                                                             <tr>
+                                                                <th class="px-3 py-2 text-center">ไตรมาส</th>
                                                                 <th class="px-3 py-2">รหัส</th>
                                                                 <th class="px-3 py-2">ชื่อหลักสูตร (รุ่น)</th>
                                                                 <th class="px-3 py-2 text-center">ชั่วโมง</th>
@@ -380,24 +470,29 @@
                                                                 <th class="px-3 py-2">ผู้รับผิดชอบ</th>
                                                                 <th class="px-3 py-2">วันเวลาที่เปิดฝึก</th>
                                                                 <th class="px-3 py-2 text-center">สถานะ</th>
-                                                                <th class="px-3 py-2 text-center">จัดการ</th>
+                                                                <th class="px-3 py-2 text-center no-print">จัดการ</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody class="divide-y divide-slate-100">
-                                                            ${courses.length === 0 ? `<tr><td colspan="8" class="px-3 py-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>` : ''}
-                                                            ${courses.map(course => `
+                                                            ${courses.length === 0 ? `<tr><td colspan="9" class="px-3 py-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>` : ''}
+                                                            ${courses.map(course => {
+                                                                let qLabel = course.quarter || '1-2';
+                                                                if (qLabel === '1' || qLabel === '2') qLabel = '1-2';
+                                                                return `
                                                             <tr class="hover:bg-slate-50">
+                                                                <td class="px-3 py-2 text-center"><span class="bg-indigo-50 text-indigo-600 border border-indigo-100 px-1.5 py-0.5 rounded text-[10px] font-bold">Q${qLabel}</span></td>
                                                                 <td class="px-3 py-2 font-mono text-slate-500 text-xs">${course.courseCode}</td>
                                                                 <td class="px-3 py-2 text-slate-800"><i class="fa-solid fa-book-open text-slate-300 mr-1.5 text-xs"></i>${course.courseName}</td>
                                                                 <td class="px-3 py-2 text-center text-slate-600 text-xs">${course.hours || '-'}</td>
                                                                 <td class="px-3 py-2 text-center text-slate-600 text-xs">${course.hasOwnProperty('trainees') ? course.trainees : 20}</td>
-                                                                <td class="px-3 py-2"><span class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs"><i class="fa-solid fa-user"></i> ${course.responsiblePerson}</span></td>
+                                                                <td class="px-3 py-2"><span class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs"><i class="fa-solid fa-user text-slate-400"></i> ${course.responsiblePerson}</span></td>
                                                                 <td class="px-3 py-2 text-slate-600 text-xs">${course.trainingDate}</td>
                                                                 <td class="px-3 py-2 text-center">${renderStatusBadge(course.status)}</td>
-                                                                <td class="px-3 py-2 text-center">
-                                                                    <button onclick="openModal('editCourse', '${project.id}', '${mainAct.id}', '${subAct.id}', '${course.id}')" class="p-1 text-slate-400 hover:text-blue-600 transition-colors"><i class="fa-solid fa-pen"></i></button>
+                                                                <td class="px-3 py-2 text-center no-print whitespace-nowrap">
+                                                                    <button onclick="openModal('editCourse', '${project.id}', '${mainAct.id}', '${subAct.id}', '${course.id}')" class="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors" title="แก้ไข"><i class="fa-solid fa-pen"></i></button>
+                                                                    <button onclick="deleteItem('course', '${project.id}', '${mainAct.id}', '${subAct.id}', '${course.id}')" class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors ml-1" title="ลบ"><i class="fa-solid fa-trash"></i></button>
                                                                 </td>
-                                                            </tr>`).join('')}
+                                                            </tr>`}).join('')}
                                                         </tbody>
                                                     </table>
                                                 </div>` : ''}
@@ -414,68 +509,79 @@
             listContainer.innerHTML = htmlStr;
         }
 
-        function updateDashboardChart(counts, total) {
-            const getPct = (val) => total > 0 ? Math.round((val / total) * 100) : 0;
-            const donePct = getPct(counts.done);
-            const activePct = getPct(counts.active);
-            const pendingPct = getPct(counts.pending);
+        function updateDashboardCharts(openedCourses, total, quarterCounts) {
+            const getPct = (val, tot = total) => tot > 0 ? Math.round((val / tot) * 100) : 0;
+            const openedPct = getPct(openedCourses);
 
-            document.getElementById('chartTotalText').innerText = total;
-
-            document.getElementById('chartLegend').innerHTML = `
-                <div class="flex justify-between items-center text-sm">
-                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="text-slate-600">เสร็จสิ้น</span></div>
-                    <span class="font-bold text-slate-800">${counts.done} <span class="text-xs text-slate-400 font-normal">(${donePct}%)</span></span>
-                </div>
-                <div class="flex justify-between items-center text-sm">
-                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span class="text-slate-600">กำลังดำเนินการ</span></div>
-                    <span class="font-bold text-slate-800">${counts.active} <span class="text-xs text-slate-400 font-normal">(${activePct}%)</span></span>
-                </div>
-                <div class="flex justify-between items-center text-sm">
-                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-200"></span><span class="text-slate-600">รอเปิดอบรม</span></div>
-                    <span class="font-bold text-slate-800">${counts.pending} <span class="text-xs text-slate-400 font-normal">(${pendingPct}%)</span></span>
+            // 1. อัปเดตแถบความคืบหน้ารวม
+            document.getElementById('globalProgressContainer').innerHTML = `
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-left shadow-inner">
+                    <div class="flex justify-between text-sm mb-2 items-end">
+                        <span class="font-bold text-slate-700">รุ่นที่เปิดไปแล้วทั้งหมด</span>
+                        <span class="font-bold text-blue-700 text-base">${openedCourses} <span class="text-slate-500 text-sm font-normal">/ ${total}</span></span>
+                    </div>
+                    <div class="w-full bg-blue-200/50 rounded-full h-2.5 mb-1.5 overflow-hidden">
+                        <div class="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style="width: ${openedPct}%"></div>
+                    </div>
+                    <div class="text-right text-xs text-blue-600/80 font-medium">ความคืบหน้า ${openedPct}%</div>
                 </div>
             `;
 
-            const ctx = document.getElementById('trainingStatusChart');
-            if (!ctx) return;
+            // 2. วาดกราฟและอัปเดตข้อมูลย่อยของ 3 กลุ่ม (Q1-2, Q3, Q4)
+            ['1-2', '3', '4'].forEach(q => {
+                // สร้าง ID ของ Canvas ให้ถูกรูปแบบ HTML (ห้ามมีขีด ให้ใช้ _)
+                const canvasId = `chartQ${q.replace('-', '_')}`;
+                const textId = `textQ${q.replace('-', '_')}`;
+                
+                const ctx = document.getElementById(canvasId);
+                if (!ctx) return;
+                
+                const qData = quarterCounts[q];
+                const chartData = [qData.done, qData.active, qData.pending];
+                const hasData = qData.courses > 0;
 
-            const chartData = [counts.done, counts.active, counts.pending];
-            const hasData = total > 0;
+                // อัปเดตข้อความใต้กราฟ
+                document.getElementById(textId).innerHTML = `
+                    <span class="font-bold text-slate-800 text-sm">${qData.courses} รุ่น</span> <br>
+                    <span class="text-slate-500">เป้าหมาย ${qData.trainees} คน</span>
+                `;
 
-            if (chartInstance) {
-                chartInstance.data.datasets[0].data = hasData ? chartData : [1];
-                chartInstance.data.datasets[0].backgroundColor = hasData ? ['#10b981', '#3b82f6', '#e2e8f0'] : ['#f1f5f9'];
-                chartInstance.update();
-            } else {
-                chartInstance = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: ['เสร็จสิ้น', 'กำลังดำเนินการ', 'รอเปิดอบรม'],
-                        datasets: [{
-                            data: hasData ? chartData : [1],
-                            backgroundColor: hasData ? ['#10b981', '#3b82f6', '#e2e8f0'] : ['#f1f5f9'],
-                            borderWidth: 0,
-                            hoverOffset: 4
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        cutout: '75%',
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                enabled: hasData,
-                                callbacks: {
-                                    label: function(context) {
-                                        return ' ' + context.label + ': ' + context.raw + ' รุ่น';
+                // วาดกราฟ
+                if (chartInstances[q]) {
+                    chartInstances[q].data.datasets[0].data = hasData ? chartData : [1];
+                    chartInstances[q].data.datasets[0].backgroundColor = hasData ? ['#10b981', '#3b82f6', '#e2e8f0'] : ['#f1f5f9'];
+                    chartInstances[q].update();
+                } else {
+                    chartInstances[q] = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['เสร็จสิ้น', 'กำลังดำเนินการ', 'รอเปิดอบรม'],
+                            datasets: [{
+                                data: hasData ? chartData : [1],
+                                backgroundColor: hasData ? ['#10b981', '#3b82f6', '#e2e8f0'] : ['#f1f5f9'],
+                                borderWidth: 0,
+                                hoverOffset: 2
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            cutout: '65%',
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    enabled: hasData,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return ' ' + context.label + ': ' + context.raw + ' รุ่น';
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                });
-            }
+                    });
+                }
+            });
         }
 
         function createKpiCard(title, value, iconClass) {
@@ -511,27 +617,45 @@
             const mBody = document.getElementById('modalBody');
             const title = document.getElementById('modalTitle');
             
-            if (type === 'addProject') {
-                title.innerText = 'เพิ่มโครงการใหม่';
-                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อโครงการ</label><input required id="inp_pName" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-600"></div>`;
-            } else if (type === 'addMainActivity') {
-                title.innerText = 'เพิ่มกิจกรรมหลัก';
-                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อกิจกรรมหลัก</label><input required id="inp_mName" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-600"></div>`;
-            } else if (type === 'addSubActivity') {
-                title.innerText = 'เพิ่มกิจกรรมย่อย';
-                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อกิจกรรมย่อย</label><input required id="inp_sName" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"></div>`;
+            if (type === 'addProject' || type === 'editProject') {
+                title.innerText = type === 'addProject' ? 'เพิ่มโครงการใหม่' : 'แก้ไขโครงการ';
+                let pName = '';
+                if (type === 'editProject') pName = appData.find(x => x.id === pId)?.projectName || '';
+                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อโครงการ</label><input required id="inp_pName" value="${pName}" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-blue-600"></div>`;
+            } else if (type === 'addMainActivity' || type === 'editMainActivity') {
+                title.innerText = type === 'addMainActivity' ? 'เพิ่มกิจกรรมหลัก' : 'แก้ไขกิจกรรมหลัก';
+                let mName = '';
+                if (type === 'editMainActivity') {
+                    const p = appData.find(x => x.id === pId);
+                    mName = p.mainActivities.find(x => x.id === mId)?.mainActivityName || '';
+                }
+                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อกิจกรรมหลัก</label><input required id="inp_mName" value="${mName}" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-emerald-600"></div>`;
+            } else if (type === 'addSubActivity' || type === 'editSubActivity') {
+                title.innerText = type === 'addSubActivity' ? 'เพิ่มกิจกรรมย่อย' : 'แก้ไขกิจกรรมย่อย';
+                let sName = '';
+                if (type === 'editSubActivity') {
+                    const p = appData.find(x => x.id === pId);
+                    const m = p.mainActivities.find(x => x.id === mId);
+                    sName = m.subActivities.find(x => x.id === sId)?.subActivityName || '';
+                }
+                mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อกิจกรรมย่อย</label><input required id="inp_sName" value="${sName}" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"></div>`;
             } else if (type === 'addCourse' || type === 'editCourse') {
                 title.innerText = type === 'addCourse' ? 'เพิ่มรุ่น/หลักสูตรใหม่' : 'แก้ไขรุ่น/หลักสูตร';
-                let cData = { code: '', name: '', hours: '', trainees: 20, person: '', date: '', status: 'รอเปิดอบรม' };
+                let cData = { code: '', name: '', quarter: '1-2', hours: '', trainees: 20, person: '', date: '', status: 'รอเปิดอบรม' };
                 
                 if (type === 'editCourse') {
                     const p = appData.find(x => x.id === pId);
                     const m = p.mainActivities.find(x => x.id === mId);
                     const s = m.subActivities.find(x => x.id === sId);
                     const c = s.courses.find(x => x.id === cId);
+                    
+                    let savedQuarter = c.quarter || '1-2';
+                    if (savedQuarter === '1' || savedQuarter === '2') savedQuarter = '1-2';
+                    
                     cData = { 
                         code: c.courseCode, 
                         name: c.courseName, 
+                        quarter: savedQuarter,
                         hours: c.hours || '',
                         trainees: c.hasOwnProperty('trainees') ? c.trainees : 20,
                         person: c.responsiblePerson, 
@@ -541,9 +665,16 @@
                 }
 
                 mBody.innerHTML = `
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="col-span-1"><label class="block text-sm font-medium mb-1">รหัส</label><input required id="inp_cCode" value="${cData.code}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
-                        <div class="col-span-2"><label class="block text-sm font-medium mb-1">ชื่อหลักสูตร (รุ่น)</label><input required id="inp_cName" value="${cData.name}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
+                    <div class="grid grid-cols-4 gap-3">
+                        <div class="col-span-1"><label class="block text-sm font-medium mb-1">ไตรมาส</label>
+                            <select id="inp_cQuarter" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600 bg-white text-sm">
+                                <option value="1-2" ${cData.quarter==='1-2'?'selected':''}>Q1-Q2</option>
+                                <option value="3" ${cData.quarter==='3'?'selected':''}>Q3</option>
+                                <option value="4" ${cData.quarter==='4'?'selected':''}>Q4</option>
+                            </select>
+                        </div>
+                        <div class="col-span-1"><label class="block text-sm font-medium mb-1">รหัส</label><input required id="inp_cCode" value="${cData.code}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600 text-sm"></div>
+                        <div class="col-span-2"><label class="block text-sm font-medium mb-1">ชื่อหลักสูตร (รุ่น)</label><input required id="inp_cName" value="${cData.name}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600 text-sm"></div>
                     </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div><label class="block text-sm font-medium mb-1">จำนวนชั่วโมง</label><input type="number" id="inp_cHours" value="${cData.hours}" placeholder="เช่น 18" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
@@ -589,12 +720,24 @@
                         mainActivities: []
                     });
                 } 
+                else if (type === 'editProject') {
+                    await updateDoc(getProjectDoc(pId), {
+                        projectName: document.getElementById('inp_pName').value
+                    });
+                }
                 else if (type === 'addMainActivity') {
                     const proj = appData.find(x => x.id === pId);
                     const newMAct = { id: 'M-' + Date.now(), mainActivityName: document.getElementById('inp_mName').value, subActivities: [] };
                     await updateDoc(getProjectDoc(pId), { mainActivities: [...proj.mainActivities, newMAct] });
                     expandedMainActivities.add(newMAct.id);
                 } 
+                else if (type === 'editMainActivity') {
+                    const proj = appData.find(x => x.id === pId);
+                    const mainActs = [...proj.mainActivities];
+                    const mIndex = mainActs.findIndex(x => x.id === mId);
+                    mainActs[mIndex].mainActivityName = document.getElementById('inp_mName').value;
+                    await updateDoc(getProjectDoc(pId), { mainActivities: mainActs });
+                }
                 else if (type === 'addSubActivity') {
                     const proj = appData.find(x => x.id === pId);
                     const mainActs = [...proj.mainActivities];
@@ -607,6 +750,14 @@
                     await updateDoc(getProjectDoc(pId), { mainActivities: mainActs });
                     expandedSubActivities.add(newSAct.id);
                 }
+                else if (type === 'editSubActivity') {
+                    const proj = appData.find(x => x.id === pId);
+                    const mainActs = [...proj.mainActivities];
+                    const mIndex = mainActs.findIndex(x => x.id === mId);
+                    const sIndex = mainActs[mIndex].subActivities.findIndex(x => x.id === sId);
+                    mainActs[mIndex].subActivities[sIndex].subActivityName = document.getElementById('inp_sName').value;
+                    await updateDoc(getProjectDoc(pId), { mainActivities: mainActs });
+                }
                 else if (type === 'addCourse') {
                     const proj = appData.find(x => x.id === pId);
                     const mainActs = [...proj.mainActivities];
@@ -618,6 +769,7 @@
                         id: 'C-' + Date.now(),
                         courseCode: document.getElementById('inp_cCode').value,
                         courseName: document.getElementById('inp_cName').value,
+                        quarter: document.getElementById('inp_cQuarter').value,
                         hours: document.getElementById('inp_cHours').value,
                         trainees: parseInt(document.getElementById('inp_cTrainees').value) || 20,
                         responsiblePerson: document.getElementById('inp_cPerson').value,
@@ -638,6 +790,7 @@
                         ...mainActs[mIndex].subActivities[sIndex].courses[cIndex],
                         courseCode: document.getElementById('inp_cCode').value,
                         courseName: document.getElementById('inp_cName').value,
+                        quarter: document.getElementById('inp_cQuarter').value,
                         hours: document.getElementById('inp_cHours').value,
                         trainees: parseInt(document.getElementById('inp_cTrainees').value) || 20,
                         responsiblePerson: document.getElementById('inp_cPerson').value,
@@ -656,6 +809,39 @@
                 saveBtn.disabled = false;
             }
         });
+
+        // ฟังก์ชันสำหรับการลบข้อมูล (Delete Function)
+        window.deleteItem = async (type, pId, mId = '', sId = '', cId = '') => {
+            if (!confirm('คุณยืนยันที่จะลบข้อมูลนี้ใช่หรือไม่?\\n(คำเตือน: การลบจะไม่สามารถกู้คืนได้ และข้อมูลย่อยด้านในจะถูกลบไปด้วยทั้งหมด)')) return;
+            
+            if (!currentUser) return alert("กรุณารอระบบยืนยันตัวตนสักครู่...");
+            
+            try {
+                if (type === 'project') {
+                    await deleteDoc(getProjectDoc(pId));
+                } else if (type === 'mainActivity') {
+                    const proj = appData.find(x => x.id === pId);
+                    const updatedActs = proj.mainActivities.filter(x => x.id !== mId);
+                    await updateDoc(getProjectDoc(pId), { mainActivities: updatedActs });
+                } else if (type === 'subActivity') {
+                    const proj = appData.find(x => x.id === pId);
+                    const mainActs = [...proj.mainActivities];
+                    const mIndex = mainActs.findIndex(x => x.id === mId);
+                    mainActs[mIndex].subActivities = mainActs[mIndex].subActivities.filter(x => x.id !== sId);
+                    await updateDoc(getProjectDoc(pId), { mainActivities: mainActs });
+                } else if (type === 'course') {
+                    const proj = appData.find(x => x.id === pId);
+                    const mainActs = [...proj.mainActivities];
+                    const mIndex = mainActs.findIndex(x => x.id === mId);
+                    const sIndex = mainActs[mIndex].subActivities.findIndex(x => x.id === sId);
+                    mainActs[mIndex].subActivities[sIndex].courses = mainActs[mIndex].subActivities[sIndex].courses.filter(x => x.id !== cId);
+                    await updateDoc(getProjectDoc(pId), { mainActivities: mainActs });
+                }
+            } catch (error) {
+                console.error("Delete Error:", error);
+                alert("เกิดข้อผิดพลาดในการลบ: " + error.message);
+            }
+        };
     </script>
 </body>
 </html>
