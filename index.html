@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js สำหรับวาดกราฟ -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
         body { font-family: 'Sarabun', sans-serif; }
         .hidden-safely { display: none !important; }
@@ -18,7 +21,8 @@
 <body class="bg-slate-50 text-slate-800">
 
     <div class="min-h-screen p-4 md:p-6">
-        <div class="max-w-6xl mx-auto space-y-6">
+        <!-- ขยายความกว้างเป็น max-w-[1400px] หรือ 95% เพื่อลดพื้นที่ว่างด้านข้าง -->
+        <div class="max-w-[1400px] mx-auto space-y-6">
             
             <!-- Header Section -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -39,7 +43,7 @@
                         <input
                             type="text"
                             id="searchInput"
-                            placeholder="ค้นหา โครงการ, กิจกรรม, หลักสูตร..."
+                            placeholder="ค้นหา โครงการ, กิจกรรม, รุ่น..."
                             class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
@@ -53,33 +57,63 @@
                 </div>
             </div>
 
-            <!-- KPI Summary Cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="kpiContainer">
-                <!-- KPI cards will be rendered here -->
-            </div>
+            <!-- แบ่งเลย์เอาต์หน้าจอเป็น 2 คอลัมน์ (ซ้ายเนื้อหา 3 ส่วน, ขวากราฟ 1 ส่วน) -->
+            <div class="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+                
+                <!-- ฝั่งซ้าย: เนื้อหาหลัก -->
+                <div class="xl:col-span-3 space-y-6">
+                    <!-- KPI Summary Cards -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="kpiContainer">
+                        <!-- KPI cards will be rendered here -->
+                    </div>
 
-            <!-- Main Content: Hierarchical List -->
-            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-4 bg-slate-100 border-b border-slate-200 font-semibold text-slate-700 flex justify-between items-center">
-                    <span>รายการโครงการ (Projects)</span>
-                    <span id="projectCountBadge" class="text-sm font-normal bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
-                        กำลังโหลดข้อมูล...
-                    </span>
-                </div>
+                    <!-- Main Content: Hierarchical List -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-4 bg-slate-100 border-b border-slate-200 font-semibold text-slate-700 flex justify-between items-center">
+                            <span>รายการโครงการ (Projects)</span>
+                            <span id="projectCountBadge" class="text-sm font-normal bg-blue-100 text-blue-700 px-3 py-1 rounded-full">
+                                กำลังโหลดข้อมูล...
+                            </span>
+                        </div>
 
-                <div class="divide-y divide-slate-100" id="projectListContainer">
-                    <div class="p-12 text-center text-slate-500">
-                        <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-500 mb-4"></i>
-                        <p>กำลังเชื่อมต่อฐานข้อมูล...</p>
+                        <div class="divide-y divide-slate-100" id="projectListContainer">
+                            <div class="p-12 text-center text-slate-500">
+                                <i class="fa-solid fa-spinner fa-spin text-3xl text-blue-500 mb-4"></i>
+                                <p>กำลังเชื่อมต่อฐานข้อมูล...</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                <!-- ฝั่งขวา: Sidebar สรุปกราฟ (ใช้ sticky เพื่อให้เลื่อนตามหน้าจอ) -->
+                <div class="xl:col-span-1 space-y-6 sticky top-6">
+                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                        <h3 class="font-bold text-slate-800 mb-6 text-center border-b border-slate-100 pb-3">ภาพรวมสถานะการเปิดรุ่น</h3>
+                        
+                        <!-- Chart Container -->
+                        <div class="relative w-48 h-48 mx-auto mb-6">
+                            <canvas id="trainingStatusChart"></canvas>
+                            <!-- ข้อความตรงกลางกราฟวงกลม -->
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span class="text-3xl font-bold text-slate-800" id="chartTotalText">0</span>
+                                <span class="text-[10px] text-slate-500 uppercase tracking-wider">รุ่นที่ฝึก</span>
+                            </div>
+                        </div>
+
+                        <!-- คำอธิบายกราฟ (Legend & Details) -->
+                        <div id="chartLegend" class="space-y-3 mt-4 border-t border-slate-100 pt-4">
+                            <!-- รายละเอียดจะถูกแทรกที่นี่ด้วย JS -->
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
 
     <!-- Modal Form (Hidden by default) -->
-    <div id="formModal" class="hidden-safely fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all">
+    <div id="formModal" class="hidden-safely fixed inset-0 bg-slate-900/40 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all my-8">
             <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-slate-50">
                 <h3 id="modalTitle" class="text-lg font-bold text-slate-800">หัวข้อ</h3>
                 <button onclick="closeModal()" class="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors">
@@ -97,7 +131,7 @@
                 <!-- Dynamic inputs will be inserted here by JS -->
                 <div id="modalBody" class="space-y-4"></div>
 
-                <div class="pt-4 flex justify-end gap-2 border-t border-slate-100">
+                <div class="pt-4 flex justify-end gap-2 border-t border-slate-100 mt-6">
                     <button type="button" onclick="closeModal()" class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
                         ยกเลิก
                     </button>
@@ -132,7 +166,7 @@
         const db = getFirestore(app);
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const getProjectsCol = () => collection(db, 'artifacts', appId, 'public', 'data', 'projects_v2'); // เปลี่ยน collection เผื่อโครงสร้างเก่าพัง
+        const getProjectsCol = () => collection(db, 'artifacts', appId, 'public', 'data', 'projects_v2'); 
         const getProjectDoc = (pId) => doc(db, 'artifacts', appId, 'public', 'data', 'projects_v2', pId);
 
         let appData = [];
@@ -142,6 +176,7 @@
         let expandedSubActivities = new Set();
         let currentUser = null;
         let isListenerInit = false;
+        let chartInstance = null; 
 
         async function initAuth() {
             try {
@@ -237,8 +272,11 @@
             const filteredData = getFilteredData();
             
             let tMainAct = 0, tSubAct = 0, tCour = 0;
-            let staff = new Set();
+            let totalTrainees = 0;
             
+            // ข้อมูลสำหรับกราฟ
+            let statusCounts = { done: 0, active: 0, pending: 0 };
+
             appData.forEach(p => {
                 tMainAct += p.mainActivities.length;
                 p.mainActivities.forEach(ma => {
@@ -246,7 +284,14 @@
                     (ma.subActivities || []).forEach(sa => {
                         tCour += (sa.courses || []).length;
                         (sa.courses || []).forEach(c => {
-                            if(c.responsiblePerson) staff.add(c.responsiblePerson);
+                            // นับยอดเป้าหมายคนฝึกอบรม (รองรับข้อมูลเก่าที่ยังไม่มีฟิลด์นี้ โดยให้ค่าเริ่มต้น 20)
+                            let traineesCount = c.hasOwnProperty('trainees') ? parseInt(c.trainees) || 0 : 20;
+                            totalTrainees += traineesCount;
+                            
+                            // นับสถานะหลักสูตร/รุ่น
+                            if(c.status === 'เสร็จสิ้น') statusCounts.done++;
+                            else if(c.status === 'กำลังดำเนินการ') statusCounts.active++;
+                            else statusCounts.pending++;
                         });
                     });
                 });
@@ -255,9 +300,12 @@
             document.getElementById('kpiContainer').innerHTML = `
                 ${createKpiCard('โครงการทั้งหมด', appData.length, 'fa-folder-open text-blue-500')}
                 ${createKpiCard('กิจกรรมหลัก', tMainAct, 'fa-briefcase text-emerald-500')}
-                ${createKpiCard('กิจกรรมย่อย', tSubAct, 'fa-list-check text-amber-500')}
-                ${createKpiCard('หลักสูตร/เป้าหมาย', tCour, 'fa-book-open text-purple-500')}
+                ${createKpiCard('รุ่นที่เปิดฝึก', tCour, 'fa-layer-group text-amber-500')}
+                ${createKpiCard('เป้าหมาย (คน)', totalTrainees, 'fa-users text-purple-500')}
             `;
+
+            // อัปเดตกราฟทางขวามือ
+            updateDashboardChart(statusCounts, tCour);
 
             document.getElementById('projectCountBadge').innerText = `พบ ${filteredData.length} โครงการ`;
             const listContainer = document.getElementById('projectListContainer');
@@ -316,7 +364,7 @@
                                                     <i class="fa-solid fa-list-check text-amber-600 flex-shrink-0"></i>
                                                     <h4 class="font-medium text-slate-700 text-sm">[กิจกรรมย่อย] ${subAct.subActivityName}</h4>
                                                     <button onclick="event.stopPropagation(); openModal('addCourse', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="ml-auto flex items-center gap-1 text-[11px] bg-white text-slate-700 hover:bg-slate-100 px-2 py-1 rounded border border-slate-300 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        <i class="fa-solid fa-plus"></i> เพิ่มหลักสูตร
+                                                        <i class="fa-solid fa-plus"></i> เพิ่มรุ่น/หลักสูตร
                                                     </button>
                                                 </div>
 
@@ -326,22 +374,26 @@
                                                         <thead class="text-xs text-slate-500 uppercase bg-slate-50">
                                                             <tr>
                                                                 <th class="px-3 py-2">รหัส</th>
-                                                                <th class="px-3 py-2">ชื่อหลักสูตร</th>
+                                                                <th class="px-3 py-2">ชื่อหลักสูตร (รุ่น)</th>
+                                                                <th class="px-3 py-2 text-center">ชั่วโมง</th>
+                                                                <th class="px-3 py-2 text-center">จำนวนคน</th>
                                                                 <th class="px-3 py-2">ผู้รับผิดชอบ</th>
                                                                 <th class="px-3 py-2">วันเวลาที่เปิดฝึก</th>
-                                                                <th class="px-3 py-2">สถานะ</th>
+                                                                <th class="px-3 py-2 text-center">สถานะ</th>
                                                                 <th class="px-3 py-2 text-center">จัดการ</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody class="divide-y divide-slate-100">
-                                                            ${courses.length === 0 ? `<tr><td colspan="6" class="px-3 py-4 text-center text-slate-400">ยังไม่มีหลักสูตร</td></tr>` : ''}
+                                                            ${courses.length === 0 ? `<tr><td colspan="8" class="px-3 py-4 text-center text-slate-400">ยังไม่มีข้อมูล</td></tr>` : ''}
                                                             ${courses.map(course => `
                                                             <tr class="hover:bg-slate-50">
                                                                 <td class="px-3 py-2 font-mono text-slate-500 text-xs">${course.courseCode}</td>
                                                                 <td class="px-3 py-2 text-slate-800"><i class="fa-solid fa-book-open text-slate-300 mr-1.5 text-xs"></i>${course.courseName}</td>
+                                                                <td class="px-3 py-2 text-center text-slate-600 text-xs">${course.hours || '-'}</td>
+                                                                <td class="px-3 py-2 text-center text-slate-600 text-xs">${course.hasOwnProperty('trainees') ? course.trainees : 20}</td>
                                                                 <td class="px-3 py-2"><span class="inline-flex items-center gap-1 bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs"><i class="fa-solid fa-user"></i> ${course.responsiblePerson}</span></td>
                                                                 <td class="px-3 py-2 text-slate-600 text-xs">${course.trainingDate}</td>
-                                                                <td class="px-3 py-2">${renderStatusBadge(course.status)}</td>
+                                                                <td class="px-3 py-2 text-center">${renderStatusBadge(course.status)}</td>
                                                                 <td class="px-3 py-2 text-center">
                                                                     <button onclick="openModal('editCourse', '${project.id}', '${mainAct.id}', '${subAct.id}', '${course.id}')" class="p-1 text-slate-400 hover:text-blue-600 transition-colors"><i class="fa-solid fa-pen"></i></button>
                                                                 </td>
@@ -360,6 +412,70 @@
             });
 
             listContainer.innerHTML = htmlStr;
+        }
+
+        function updateDashboardChart(counts, total) {
+            const getPct = (val) => total > 0 ? Math.round((val / total) * 100) : 0;
+            const donePct = getPct(counts.done);
+            const activePct = getPct(counts.active);
+            const pendingPct = getPct(counts.pending);
+
+            document.getElementById('chartTotalText').innerText = total;
+
+            document.getElementById('chartLegend').innerHTML = `
+                <div class="flex justify-between items-center text-sm">
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500"></span><span class="text-slate-600">เสร็จสิ้น</span></div>
+                    <span class="font-bold text-slate-800">${counts.done} <span class="text-xs text-slate-400 font-normal">(${donePct}%)</span></span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-blue-500"></span><span class="text-slate-600">กำลังดำเนินการ</span></div>
+                    <span class="font-bold text-slate-800">${counts.active} <span class="text-xs text-slate-400 font-normal">(${activePct}%)</span></span>
+                </div>
+                <div class="flex justify-between items-center text-sm">
+                    <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-200"></span><span class="text-slate-600">รอเปิดอบรม</span></div>
+                    <span class="font-bold text-slate-800">${counts.pending} <span class="text-xs text-slate-400 font-normal">(${pendingPct}%)</span></span>
+                </div>
+            `;
+
+            const ctx = document.getElementById('trainingStatusChart');
+            if (!ctx) return;
+
+            const chartData = [counts.done, counts.active, counts.pending];
+            const hasData = total > 0;
+
+            if (chartInstance) {
+                chartInstance.data.datasets[0].data = hasData ? chartData : [1];
+                chartInstance.data.datasets[0].backgroundColor = hasData ? ['#10b981', '#3b82f6', '#e2e8f0'] : ['#f1f5f9'];
+                chartInstance.update();
+            } else {
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['เสร็จสิ้น', 'กำลังดำเนินการ', 'รอเปิดอบรม'],
+                        datasets: [{
+                            data: hasData ? chartData : [1],
+                            backgroundColor: hasData ? ['#10b981', '#3b82f6', '#e2e8f0'] : ['#f1f5f9'],
+                            borderWidth: 0,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        cutout: '75%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                enabled: hasData,
+                                callbacks: {
+                                    label: function(context) {
+                                        return ' ' + context.label + ': ' + context.raw + ' รุ่น';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
         }
 
         function createKpiCard(title, value, iconClass) {
@@ -405,24 +521,38 @@
                 title.innerText = 'เพิ่มกิจกรรมย่อย';
                 mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อกิจกรรมย่อย</label><input required id="inp_sName" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"></div>`;
             } else if (type === 'addCourse' || type === 'editCourse') {
-                title.innerText = type === 'addCourse' ? 'เพิ่มหลักสูตรใหม่' : 'แก้ไขหลักสูตร';
-                let cData = { code: '', name: '', person: '', date: '', status: 'รอเปิดอบรม' };
+                title.innerText = type === 'addCourse' ? 'เพิ่มรุ่น/หลักสูตรใหม่' : 'แก้ไขรุ่น/หลักสูตร';
+                let cData = { code: '', name: '', hours: '', trainees: 20, person: '', date: '', status: 'รอเปิดอบรม' };
                 
                 if (type === 'editCourse') {
                     const p = appData.find(x => x.id === pId);
                     const m = p.mainActivities.find(x => x.id === mId);
                     const s = m.subActivities.find(x => x.id === sId);
                     const c = s.courses.find(x => x.id === cId);
-                    cData = { code: c.courseCode, name: c.courseName, person: c.responsiblePerson, date: c.trainingDate, status: c.status };
+                    cData = { 
+                        code: c.courseCode, 
+                        name: c.courseName, 
+                        hours: c.hours || '',
+                        trainees: c.hasOwnProperty('trainees') ? c.trainees : 20,
+                        person: c.responsiblePerson, 
+                        date: c.trainingDate, 
+                        status: c.status 
+                    };
                 }
 
                 mBody.innerHTML = `
                     <div class="grid grid-cols-3 gap-3">
                         <div class="col-span-1"><label class="block text-sm font-medium mb-1">รหัส</label><input required id="inp_cCode" value="${cData.code}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
-                        <div class="col-span-2"><label class="block text-sm font-medium mb-1">ชื่อหลักสูตร</label><input required id="inp_cName" value="${cData.name}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
+                        <div class="col-span-2"><label class="block text-sm font-medium mb-1">ชื่อหลักสูตร (รุ่น)</label><input required id="inp_cName" value="${cData.name}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
                     </div>
-                    <div><label class="block text-sm font-medium mb-1">ผู้รับผิดชอบ</label><input required id="inp_cPerson" value="${cData.person}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
-                    <div><label class="block text-sm font-medium mb-1">วัน/เวลาที่เปิดฝึก</label><input required id="inp_cDate" value="${cData.date}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-sm font-medium mb-1">จำนวนชั่วโมง</label><input type="number" id="inp_cHours" value="${cData.hours}" placeholder="เช่น 18" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
+                        <div><label class="block text-sm font-medium mb-1">จำนวนคน (ต่อรุ่น)</label><input required type="number" id="inp_cTrainees" value="${cData.trainees}" min="1" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="block text-sm font-medium mb-1">ผู้รับผิดชอบ</label><input required id="inp_cPerson" value="${cData.person}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
+                        <div><label class="block text-sm font-medium mb-1">วัน/เวลาที่เปิดฝึก</label><input required id="inp_cDate" value="${cData.date}" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600"></div>
+                    </div>
                     <div><label class="block text-sm font-medium mb-1">สถานะ</label>
                         <select id="inp_cStatus" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-blue-600 bg-white">
                             <option value="รอเปิดอบรม" ${cData.status==='รอเปิดอบรม'?'selected':''}>รอเปิดอบรม</option>
@@ -488,6 +618,8 @@
                         id: 'C-' + Date.now(),
                         courseCode: document.getElementById('inp_cCode').value,
                         courseName: document.getElementById('inp_cName').value,
+                        hours: document.getElementById('inp_cHours').value,
+                        trainees: parseInt(document.getElementById('inp_cTrainees').value) || 20,
                         responsiblePerson: document.getElementById('inp_cPerson').value,
                         trainingDate: document.getElementById('inp_cDate').value,
                         status: document.getElementById('inp_cStatus').value
@@ -506,6 +638,8 @@
                         ...mainActs[mIndex].subActivities[sIndex].courses[cIndex],
                         courseCode: document.getElementById('inp_cCode').value,
                         courseName: document.getElementById('inp_cName').value,
+                        hours: document.getElementById('inp_cHours').value,
+                        trainees: parseInt(document.getElementById('inp_cTrainees').value) || 20,
                         responsiblePerson: document.getElementById('inp_cPerson').value,
                         trainingDate: document.getElementById('inp_cDate').value,
                         status: document.getElementById('inp_cStatus').value
