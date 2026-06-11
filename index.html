@@ -100,6 +100,18 @@
                         <!-- KPI cards will be rendered here -->
                     </div>
 
+                    <!-- เพิ่มส่วนจัดอันดับหลักสูตร -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden no-print">
+                        <div class="p-4 bg-slate-100 border-b border-slate-200 font-semibold text-slate-700 flex justify-between items-center">
+                            <span><i class="fa-solid fa-trophy text-amber-500 mr-2"></i> อันดับหลักสูตรที่เปิดอบรมมากที่สุด</span>
+                        </div>
+                        <div class="p-4 bg-slate-50/50">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="courseRankingContainer">
+                                <div class="text-center text-slate-500 col-span-full">กำลังโหลดข้อมูล...</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Main Content: Hierarchical List -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                         <div class="p-4 bg-slate-100 border-b border-slate-200 font-semibold text-slate-700 flex justify-between items-center">
@@ -336,6 +348,9 @@
                 '4': { courses: 0, trainees: 0, done: 0, active: 0, pending: 0 }
             };
 
+            // ข้อมูลสำหรับจัดอันดับหลักสูตร
+            let courseRanking = {};
+
             appData.forEach(p => {
                 tMainAct += p.mainActivities.length;
                 p.mainActivities.forEach(ma => {
@@ -363,6 +378,11 @@
                                 statusCounts.pending++;
                                 quarterCounts[q].pending++;
                             }
+
+                            // ดึงชื่อหลักสูตรโดยตัด "(รุ่นที่ X)" ออก เพื่อจัดกลุ่มให้ถูกต้อง
+                            let baseName = c.courseName.replace(/\s*\(รุ่นที่.*?\)/g, '').trim();
+                            if (!courseRanking[baseName]) courseRanking[baseName] = 0;
+                            courseRanking[baseName]++;
                         });
                     });
                 });
@@ -375,11 +395,29 @@
                 ${createKpiCard('โครงการทั้งหมด', appData.length, 'fa-folder-open text-blue-500')}
                 ${createKpiCard('กิจกรรมหลัก', tMainAct, 'fa-briefcase text-emerald-500')}
                 ${createKpiCard('เปิดแล้ว / ทั้งหมด (รุ่น)', '<span class="text-blue-600">' + openedCourses + '</span><span class="text-slate-400 text-sm font-normal"> / ' + tCour + '</span>', 'fa-layer-group text-amber-500')}
-                ${createKpiCard('เป้าหมาย (คน)', totalTrainees, 'fa-users text-purple-500')}
+                ${createKpiCard('เป้าหมายรวมที่จัดสรรแล้ว (คน)', totalTrainees, 'fa-users text-purple-500')}
             `;
 
             // อัปเดตกราฟแยก 3 ส่วน (Q1-2, Q3, Q4)
             updateDashboardCharts(openedCourses, tCour, quarterCounts);
+
+            // แสดงผลจัดอันดับหลักสูตร (Top 6)
+            let sortedCourses = Object.keys(courseRanking).map(name => ({name, count: courseRanking[name]})).sort((a,b) => b.count - a.count);
+            let rankingHtml = '';
+            sortedCourses.slice(0, 6).forEach((item, index) => {
+                let rankColor = index === 0 ? 'bg-amber-100 text-amber-600' : index === 1 ? 'bg-slate-200 text-slate-600' : index === 2 ? 'bg-orange-100 text-orange-700' : 'bg-blue-50 text-blue-600';
+                rankingHtml += `
+                    <div class="flex items-center justify-between p-3 border border-slate-200 rounded-lg shadow-sm bg-white">
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <span class="w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-full ${rankColor} font-bold text-xs">${index + 1}</span>
+                            <span class="text-sm font-medium text-slate-700 truncate" title="${item.name}">${item.name}</span>
+                        </div>
+                        <span class="text-sm font-bold text-blue-700 flex-shrink-0 ml-2">${item.count} <span class="text-[10px] text-slate-400 font-normal">รุ่น</span></span>
+                    </div>
+                `;
+            });
+            if(sortedCourses.length === 0) rankingHtml = '<div class="col-span-full text-center text-sm text-slate-400 py-4">ยังไม่มีข้อมูลหลักสูตร</div>';
+            document.getElementById('courseRankingContainer').innerHTML = rankingHtml;
 
             document.getElementById('projectCountBadge').innerText = `พบ ${filteredData.length} โครงการ`;
             const listContainer = document.getElementById('projectListContainer');
