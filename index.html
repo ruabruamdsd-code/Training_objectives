@@ -14,6 +14,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- Chart.js สำหรับวาดกราฟ -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS (xlsx-js-style) สำหรับ Import/Export Excel พร้อมรองรับการตกแต่งสไตล์ -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     
     <style>
         body { font-family: 'Sarabun', sans-serif; }
@@ -49,11 +51,10 @@
 <body class="bg-slate-50 text-slate-800">
 
     <div class="min-h-screen p-4 md:p-6">
-        <!-- ขยายความกว้างเป็น max-w-[1400px] หรือ 95% เพื่อลดพื้นที่ว่างด้านข้าง -->
         <div class="max-w-[1400px] mx-auto space-y-6 print-w-full">
             
             <!-- Header Section -->
-            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
                         <i class="fa-solid fa-chart-simple text-blue-600"></i>
@@ -62,9 +63,9 @@
                     <p class="text-slate-500 mt-1 text-sm">ฝ่ายพัฒนาฝีมือแรงงาน  สำนักงานพัฒนาฝีมือแรงงานลพบุรี</p>
                 </div>
                 
-                <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto no-print">
+                <div class="flex flex-wrap gap-2 w-full xl:w-auto no-print justify-start xl:justify-end items-center">
                     <!-- Search Box -->
-                    <div class="relative w-full sm:w-64 md:w-80">
+                    <div class="relative w-full sm:w-64">
                         <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <i class="fa-solid fa-search text-slate-400"></i>
                         </div>
@@ -72,20 +73,40 @@
                             type="text"
                             id="searchInput"
                             placeholder="ค้นหา โครงการ, กิจกรรม, รุ่น..."
-                            class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            class="block w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg text-sm leading-5 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                     </div>
+
+                    <!-- Input ไฟล์ Excel ที่ซ่อนไว้ -->
+                    <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="handleExcelUpload(event)">
+                    
+                    <!-- ปุ่มนำเข้า Excel -->
+                    <button 
+                        onclick="document.getElementById('excelFileInput').click()"
+                        class="flex items-center justify-center gap-1.5 bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm text-sm"
+                    >
+                        <i class="fa-solid fa-file-excel"></i> นำเข้า
+                    </button>
+
+                    <!-- ปุ่มส่งออก Excel -->
+                    <button 
+                        onclick="exportToExcel()"
+                        class="flex items-center justify-center gap-1.5 bg-slate-600 text-white px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow-sm text-sm"
+                    >
+                        <i class="fa-solid fa-file-export"></i> ส่งออก
+                    </button>
+
                     <!-- Print Button -->
                     <button 
                         onclick="window.print()"
-                        class="flex items-center justify-center gap-2 bg-white border border-slate-300 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm shrink-0"
+                        class="flex items-center justify-center gap-1.5 bg-white border border-slate-300 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors shadow-sm text-sm"
                     >
                         <i class="fa-solid fa-print"></i> พิมพ์
                     </button>
                     <!-- Add Project Button -->
                     <button 
                         onclick="openModal('addProject')"
-                        class="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm shrink-0"
+                        class="flex items-center justify-center gap-1.5 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors shadow-sm text-sm"
                     >
                         <i class="fa-solid fa-plus"></i> เพิ่มโครงการ
                     </button>
@@ -132,7 +153,7 @@
                     </div>
                 </div>
 
-                <!-- ฝั่งขวา: Sidebar สรุปกราฟ (ใช้ sticky เพื่อให้เลื่อนตามหน้าจอ) -->
+                <!-- ฝั่งขวา: Sidebar สรุปกราฟ -->
                 <div class="xl:col-span-4 space-y-6 sticky top-6 print-w-full print-avoid-break">
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                         <h3 class="font-bold text-slate-800 text-lg mb-5 text-center border-b border-slate-100 pb-4">สถานะแยกรายไตรมาส</h3>
@@ -241,7 +262,6 @@
         let currentUser = null;
         let isListenerInit = false;
         
-        // ตัวแปรเก็บกราฟทั้ง 3 (รวม Q1 และ Q2)
         let chartInstances = { '1-2': null, '3': null, '4': null };
 
         async function initAuth() {
@@ -339,18 +359,12 @@
             
             let tMainAct = 0, tSubAct = 0, tCour = 0;
             let totalTrainees = 0;
-            
-            // ข้อมูลสำหรับกราฟ
             let statusCounts = { done: 0, active: 0, pending: 0 };
-            
-            // ข้อมูลสรุปรายไตรมาส (รวม 1-2 เข้าด้วยกัน)
             let quarterCounts = {
                 '1-2': { courses: 0, trainees: 0, done: 0, active: 0, pending: 0 },
                 '3': { courses: 0, trainees: 0, done: 0, active: 0, pending: 0 },
                 '4': { courses: 0, trainees: 0, done: 0, active: 0, pending: 0 }
             };
-
-            // ข้อมูลสำหรับจัดอันดับหลักสูตร
             let courseRanking = {};
 
             appData.forEach(p => {
@@ -363,7 +377,6 @@
                             let traineesCount = c.hasOwnProperty('trainees') ? parseInt(c.trainees) || 0 : 20;
                             totalTrainees += traineesCount;
                             
-                            // ดึงค่าไตรมาส ถ้าระบุเป็น 1 หรือ 2 ให้จับมารวมที่ 1-2
                             let q = c.quarter || '1-2';
                             if (q === '1' || q === '2') q = '1-2';
                             
@@ -381,7 +394,6 @@
                                 quarterCounts[q].pending++;
                             }
 
-                            // ดึงชื่อหลักสูตรโดยตัด "(รุ่นที่ X)" ออก เพื่อจัดกลุ่มให้ถูกต้อง
                             let baseName = c.courseName.replace(/\s*\(รุ่นที่.*?\)/g, '').trim();
                             if (!courseRanking[baseName]) courseRanking[baseName] = 0;
                             courseRanking[baseName]++;
@@ -390,7 +402,6 @@
                 });
             });
 
-            // คำนวณจำนวนรุ่นที่เปิดไปแล้วทั้งหมด
             let openedCourses = statusCounts.done + statusCounts.active;
 
             document.getElementById('kpiContainer').innerHTML = `
@@ -400,10 +411,8 @@
                 ${createKpiCard('จำนวนผู้เข้ารับการฝึกทั้งหมด (คน)', totalTrainees, 'fa-users text-purple-500')}
             `;
 
-            // อัปเดตกราฟแยก 3 ส่วน (Q1-2, Q3, Q4)
             updateDashboardCharts(openedCourses, tCour, quarterCounts);
 
-            // แสดงผลจัดอันดับหลักสูตร (Top 6)
             let sortedCourses = Object.keys(courseRanking).map(name => ({name, count: courseRanking[name]})).sort((a,b) => b.count - a.count);
             let rankingHtml = '';
             sortedCourses.slice(0, 6).forEach((item, index) => {
@@ -553,7 +562,6 @@
             const getPct = (val, tot = total) => tot > 0 ? Math.round((val / tot) * 100) : 0;
             const openedPct = getPct(openedCourses);
 
-            // 1. อัปเดตแถบความคืบหน้ารวม
             document.getElementById('globalProgressContainer').innerHTML = `
                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-left shadow-inner">
                     <div class="flex justify-between text-sm mb-2 items-end">
@@ -567,9 +575,7 @@
                 </div>
             `;
 
-            // 2. วาดกราฟและอัปเดตข้อมูลย่อยของ 3 กลุ่ม (Q1-2, Q3, Q4)
             ['1-2', '3', '4'].forEach(q => {
-                // สร้าง ID ของ Canvas ให้ถูกรูปแบบ HTML (ห้ามมีขีด ให้ใช้ _)
                 const canvasId = `chartQ${q.replace('-', '_')}`;
                 const textId = `textQ${q.replace('-', '_')}`;
                 
@@ -580,13 +586,11 @@
                 const chartData = [qData.done, qData.active, qData.pending];
                 const hasData = qData.courses > 0;
 
-                // อัปเดตข้อความใต้กราฟ
                 document.getElementById(textId).innerHTML = `
                     <span class="font-bold text-slate-800 text-sm">${qData.courses} รุ่น</span> <br>
                     <span class="text-slate-500">จำนวนผู้เข้ารับการฝึกอบรม ${qData.trainees} คน</span>
                 `;
 
-                // วาดกราฟ
                 if (chartInstances[q]) {
                     chartInstances[q].data.datasets[0].data = hasData ? chartData : [1];
                     chartInstances[q].data.datasets[0].backgroundColor = hasData ? ['#10b981', '#3b82f6', '#e2e8f0'] : ['#f1f5f9'];
@@ -852,7 +856,7 @@
 
         // ฟังก์ชันสำหรับการลบข้อมูล (Delete Function)
         window.deleteItem = async (type, pId, mId = '', sId = '', cId = '') => {
-            if (!confirm('คุณยืนยันที่จะลบข้อมูลนี้ใช่หรือไม่?\\n(คำเตือน: การลบจะไม่สามารถกู้คืนได้ และข้อมูลย่อยด้านในจะถูกลบไปด้วยทั้งหมด)')) return;
+            if (!confirm('คุณยืนยันที่จะลบข้อมูลนี้ใช่หรือไม่?\n(คำเตือน: การลบจะไม่สามารถกู้คืนได้ และข้อมูลย่อยด้านในจะถูกลบไปด้วยทั้งหมด)')) return;
             
             if (!currentUser) return alert("กรุณารอระบบยืนยันตัวตนสักครู่...");
             
@@ -882,6 +886,237 @@
                 alert("เกิดข้อผิดพลาดในการลบ: " + error.message);
             }
         };
+
+        // ==========================================
+        // ฟังก์ชันสำหรับ นำเข้า/ส่งออก EXCEL
+        // ==========================================
+
+        // ฟังก์ชันอ่านไฟล์ Excel นำเข้าฐานข้อมูล
+        window.handleExcelUpload = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            alert("กำลังอ่านไฟล์ Excel และบันทึกเข้าฐานข้อมูล กรุณารอสักครู่ (อาจใช้เวลาสักครู่หากข้อมูลมีจำนวนมาก)...");
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if(jsonData.length === 0) {
+                        return alert("ไม่พบข้อมูลในไฟล์ Excel");
+                    }
+                    
+                    const projectsMap = {};
+
+                    jsonData.forEach(row => {
+                        const pName = row['ชื่อโครงการ'];
+                        const mName = row['กิจกรรมหลัก'];
+                        const sName = row['กิจกรรมย่อย'];
+                        
+                        if (!pName) return; // ข้ามบรรทัดที่ไม่มีชื่อโครงการ
+
+                        if (!projectsMap[pName]) {
+                            projectsMap[pName] = { projectName: pName, mainActivities: [] };
+                        }
+                        
+                        if (mName) {
+                            let mainAct = projectsMap[pName].mainActivities.find(m => m.mainActivityName === mName);
+                            if (!mainAct) {
+                                mainAct = { id: 'M-' + Date.now() + Math.random(), mainActivityName: mName, subActivities: [] };
+                                projectsMap[pName].mainActivities.push(mainAct);
+                            }
+
+                            if (sName) {
+                                let subAct = mainAct.subActivities.find(s => s.subActivityName === sName);
+                                if (!subAct) {
+                                    subAct = { id: 'S-' + Date.now() + Math.random(), subActivityName: sName, courses: [] };
+                                    mainAct.subActivities.push(subAct);
+                                }
+
+                                if (row['ชื่อหลักสูตร'] || row['รหัสหลักสูตร']) {
+                                    subAct.courses.push({
+                                        id: 'C-' + Date.now() + Math.random(),
+                                        courseCode: row['รหัสหลักสูตร'] || '',
+                                        courseName: row['ชื่อหลักสูตร'] || '',
+                                        quarter: row['ไตรมาส']?.toString() || '1-2',
+                                        hours: row['ชั่วโมง'] || '',
+                                        trainees: parseInt(row['จำนวนคน']) || 20,
+                                        responsiblePerson: row['ผู้รับผิดชอบ'] || '',
+                                        trainingDate: row['วันที่อบรม'] || '',
+                                        status: row['สถานะ'] || 'รอเปิดอบรม'
+                                    });
+                                }
+                            }
+                        }
+                    });
+
+                    const projectsArray = Object.values(projectsMap);
+                    let importedCount = 0;
+                    
+                    for (const project of projectsArray) {
+                         await addDoc(getProjectsCol(), project);
+                         importedCount++;
+                    }
+
+                    alert(`นำเข้าข้อมูลสำเร็จแล้วจำนวน ${importedCount} โครงการ!`);
+                    document.getElementById('excelFileInput').value = ''; 
+                    
+                } catch (error) {
+                    console.error("Excel Import Error:", error);
+                    alert("เกิดข้อผิดพลาดในการนำเข้าข้อมูล: " + error.message);
+                }
+            };
+            
+            reader.readAsArrayBuffer(file);
+        };
+
+        // ฟังก์ชันดึงข้อมูลจากระบบออกเป็นไฟล์ Excel แบบมีการตกแต่ง (Styling)
+        window.exportToExcel = () => {
+            if (!appData || appData.length === 0) {
+                return alert("ไม่มีข้อมูลสำหรับส่งออก");
+            }
+
+            const aoaData = []; 
+            const rowsConfig = []; // เก็บความสูงของบรรทัด (Row heights)
+
+            // ----------------------------------------------------
+            // 🎨 การกำหนด Styles ต่างๆ ของเซลล์ใน Excel
+            // ----------------------------------------------------
+            const borderAll = {
+                top: { style: "thin", color: { auto: 1 } },
+                bottom: { style: "thin", color: { auto: 1 } },
+                left: { style: "thin", color: { auto: 1 } },
+                right: { style: "thin", color: { auto: 1 } }
+            };
+
+            const styleProject = { font: { name: 'Sarabun', sz: 14, bold: true, color: { rgb: "1E3A8A" } } };
+            const styleMain = { font: { name: 'Sarabun', sz: 12, bold: true, color: { rgb: "047857" } } };
+            const styleSub = { font: { name: 'Sarabun', sz: 12, bold: true, color: { rgb: "B45309" } } };
+            
+            const styleHeader = {
+                font: { name: 'Sarabun', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+                fill: { fgColor: { rgb: "2563EB" } }, // สีพื้นหลังสีน้ำเงิน
+                alignment: { horizontal: "center", vertical: "center", wrapText: true },
+                border: borderAll
+            };
+
+            const styleDataCenter = {
+                font: { name: 'Sarabun', sz: 11 },
+                alignment: { horizontal: "center", vertical: "center" },
+                border: borderAll
+            };
+
+            const styleDataLeft = {
+                font: { name: 'Sarabun', sz: 11 },
+                alignment: { horizontal: "left", vertical: "center" },
+                border: borderAll
+            };
+
+            // ----------------------------------------------------
+            // 🔄 ดึงข้อมูลและกำหนดสไตล์ทีละบรรทัด
+            // ----------------------------------------------------
+            appData.forEach((project, pIndex) => {
+                
+                // แถวที่ 1: ชื่อโครงการ
+                aoaData.push([{ v: `${pIndex + 1}. ${project.projectName || 'ไม่มีชื่อโครงการ'}`, t: 's', s: styleProject }]);
+                rowsConfig.push({ hpt: 30 }); // ความสูงบรรทัด 30
+                
+                if (!project.mainActivities || project.mainActivities.length === 0) {
+                    aoaData.push([]); rowsConfig.push({ hpt: 15 });
+                    return;
+                }
+
+                project.mainActivities.forEach(mainAct => {
+                    // แถวที่ 2: กิจกรรมหลัก
+                    aoaData.push(["", { v: `กิจกรรมหลัก: ${mainAct.mainActivityName || ''}`, t: 's', s: styleMain }]);
+                    rowsConfig.push({ hpt: 25 });
+
+                    if (!mainAct.subActivities || mainAct.subActivities.length === 0) return;
+
+                    mainAct.subActivities.forEach(subAct => {
+                        // แถวที่ 3: กิจกรรมย่อย
+                        aoaData.push(["", "", { v: `กิจกรรมย่อย: ${subAct.subActivityName || ''}`, t: 's', s: styleSub }]);
+                        rowsConfig.push({ hpt: 22 });
+
+                        if (!subAct.courses || subAct.courses.length === 0) return;
+
+                        // แถวที่ 4: หัวตารางของหลักสูตร (มีพื้นหลังและเส้นขอบ)
+                        aoaData.push([
+                            "", "", "", 
+                            { v: "ไตรมาส", t: 's', s: styleHeader }, 
+                            { v: "รหัสหลักสูตร", t: 's', s: styleHeader }, 
+                            { v: "ชื่อหลักสูตร (รุ่น)", t: 's', s: styleHeader }, 
+                            { v: "ชั่วโมง", t: 's', s: styleHeader }, 
+                            { v: "จำนวนคน", t: 's', s: styleHeader }, 
+                            { v: "ผู้รับผิดชอบ", t: 's', s: styleHeader }, 
+                            { v: "วันเวลาที่เปิดฝึก", t: 's', s: styleHeader }, 
+                            { v: "สถานะ", t: 's', s: styleHeader }
+                        ]);
+                        rowsConfig.push({ hpt: 25 });
+
+                        // แถวที่ 5 เป็นต้นไป: ข้อมูลหลักสูตร (มีเส้นตีกรอบ)
+                        subAct.courses.forEach(course => {
+                            let qLabel = course.quarter || '1-2';
+                            if (qLabel === '1' || qLabel === '2') qLabel = '1-2';
+
+                            aoaData.push([
+                                "", "", "", // เว้นว่าง 3 คอลัมน์แรกเพื่อให้เยื้อง
+                                { v: `Q${qLabel}`, t: 's', s: styleDataCenter },
+                                { v: course.courseCode || '-', t: 's', s: styleDataCenter },
+                                { v: course.courseName || '-', t: 's', s: styleDataLeft },
+                                { v: course.hours || '-', t: 's', s: styleDataCenter },
+                                { v: course.hasOwnProperty('trainees') ? course.trainees : 20, t: 'n', s: styleDataCenter },
+                                { v: course.responsiblePerson || '-', t: 's', s: styleDataLeft },
+                                { v: course.trainingDate || '-', t: 's', s: styleDataCenter },
+                                { v: course.status || 'รอเปิดอบรม', t: 's', s: styleDataCenter }
+                            ]);
+                            rowsConfig.push({ hpt: 20 });
+                        });
+                    });
+                });
+                
+                // เพิ่มบรรทัดว่างคั่นระหว่างจบแต่ละโครงการ
+                aoaData.push([]);
+                rowsConfig.push({ hpt: 15 });
+            });
+
+            // สร้าง Worksheet
+            const worksheet = XLSX.utils.aoa_to_sheet(aoaData);
+            
+            // 📏 ปรับความกว้างของคอลัมน์ (Column Widths)
+            worksheet['!cols'] = [
+                { wch: 45 }, // A: โครงการ
+                { wch: 45 }, // B: กิจกรรมหลัก
+                { wch: 40 }, // C: กิจกรรมย่อย
+                { wch: 12 }, // D: ไตรมาส
+                { wch: 15 }, // E: รหัสหลักสูตร
+                { wch: 55 }, // F: ชื่อหลักสูตร
+                { wch: 12 }, // G: ชั่วโมง
+                { wch: 12 }, // H: จำนวนคน
+                { wch: 25 }, // I: ผู้รับผิดชอบ
+                { wch: 20 }, // J: วันเวลา
+                { wch: 15 }  // K: สถานะ
+            ];
+
+            // 📏 ปรับความสูงของแถว (Row Heights)
+            worksheet['!rows'] = rowsConfig;
+
+            // ผูกลง Workbook และส่งออก
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Training Data");
+
+            const date = new Date();
+            const fileName = `ข้อมูลการฝึกอบรม_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}.xlsx`;
+
+            XLSX.writeFile(workbook, fileName);
+        };
+
     </script>
 </body>
 </html>
