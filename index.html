@@ -46,6 +46,11 @@
             .min-h-screen { min-height: auto !important; padding: 0 !important; }
             .shadow-sm { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
         }
+
+        /* AI Markdown styling */
+        .ai-content ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .ai-content p { margin-bottom: 0.75rem; }
+        .ai-content strong { color: #4c1d95; }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800">
@@ -93,6 +98,14 @@
                         class="flex items-center justify-center gap-1.5 bg-slate-600 text-white px-3 py-2 rounded-lg hover:bg-slate-700 transition-colors shadow-sm text-sm"
                     >
                         <i class="fa-solid fa-file-export"></i> ส่งออก
+                    </button>
+
+                    <!-- AI Analysis Button -->
+                    <button 
+                        onclick="window.generateAiSummary()"
+                        class="hidden flex items-center justify-center gap-1.5 bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors shadow-sm text-sm border border-purple-700"
+                    >
+                        ✨ AI วิเคราะห์ข้อมูล
                     </button>
 
                     <!-- Print Button -->
@@ -227,6 +240,34 @@
         </div>
     </div>
 
+    <!-- AI Feature Modal (Hidden by default) -->
+    <div id="aiModal" class="hidden-safely no-print fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-all my-8 border-t-4 border-purple-600">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100 bg-purple-50">
+                <h3 id="aiModalTitle" class="text-lg font-bold text-purple-800 flex items-center gap-2">
+                    ✨ ผู้ช่วย AI ของคุณ
+                </h3>
+                <button onclick="closeAiModal()" class="p-1 text-purple-400 hover:text-purple-700 hover:bg-purple-200 rounded-md transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            
+            <div id="aiModalBody" class="p-6 ai-content text-slate-700">
+                <!-- AI content inserted here -->
+                <div class="text-center py-8">
+                    <i class="fa-solid fa-sparkles fa-spin text-4xl text-purple-400 mb-4"></i>
+                    <p class="text-purple-600 font-medium">กำลังประมวลผลด้วย Gemini AI...</p>
+                </div>
+            </div>
+
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="closeAiModal()" class="px-4 py-2 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors font-medium">
+                    ปิดหน้าต่าง
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Firebase SDK & Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
@@ -294,8 +335,12 @@
                 appData = snapshot.docs.map(doc => ({
                     id: doc.id,
                     projectName: doc.data().projectName || 'ไม่มีชื่อโครงการ',
-                    mainActivities: doc.data().mainActivities || []
+                    mainActivities: doc.data().mainActivities || [],
+                    createdAt: doc.data().createdAt || 0 // ดึงเวลาที่สร้างมาด้วย
                 }));
+                
+                // เรียงลำดับโครงการจากเก่าไปใหม่ (ข้อมูลที่เพิ่มล่าสุดจะไปอยู่ท้ายสุด)
+                appData.sort((a, b) => a.createdAt - b.createdAt);
                 
                 if (expandedProjects.size === 0 && appData.length > 0) {
                     appData.forEach(p => {
@@ -499,6 +544,8 @@
                                                     <div class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity no-print">
                                                         <button onclick="event.stopPropagation(); openModal('editSubActivity', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="text-amber-600 hover:text-amber-800 p-1.5 rounded hover:bg-amber-200 transition-colors" title="แก้ไขกิจกรรมย่อย"><i class="fa-solid fa-pen text-xs"></i></button>
                                                         <button onclick="event.stopPropagation(); deleteItem('subActivity', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="text-red-400 hover:text-red-600 p-1.5 rounded hover:bg-red-100 transition-colors mr-1" title="ลบกิจกรรมย่อย"><i class="fa-solid fa-trash text-xs"></i></button>
+                                                        
+
                                                         <button onclick="event.stopPropagation(); openModal('addCourse', '${project.id}', '${mainAct.id}', '${subAct.id}')" class="flex items-center gap-1 text-[11px] bg-white text-slate-700 hover:bg-slate-100 px-2 py-1 rounded border border-slate-300 transition-colors">
                                                             <i class="fa-solid fa-plus"></i> เพิ่มรุ่น/หลักสูตร
                                                         </button>
@@ -649,7 +696,7 @@
         window.toggleMainActivity = (id) => { expandedMainActivities.has(id) ? expandedMainActivities.delete(id) : expandedMainActivities.add(id); renderUI(); };
         window.toggleSubActivity = (id) => { expandedSubActivities.has(id) ? expandedSubActivities.delete(id) : expandedSubActivities.add(id); renderUI(); };
 
-        window.openModal = (type, pId = '', mId = '', sId = '', cId = '') => {
+        window.openModal = (type, pId = '', mId = '', sId = '', cId = '', presetCourseName = '') => {
             document.getElementById('formModal').classList.remove('hidden-safely');
             document.getElementById('formType').value = type;
             document.getElementById('targetProjectId').value = pId;
@@ -684,7 +731,7 @@
                 mBody.innerHTML = `<div><label class="block text-sm font-medium mb-1">ชื่อกิจกรรมย่อย</label><input required id="inp_sName" value="${sName}" class="w-full p-2.5 border rounded-lg outline-none focus:ring-2 focus:ring-amber-500"></div>`;
             } else if (type === 'addCourse' || type === 'editCourse') {
                 title.innerText = type === 'addCourse' ? 'เพิ่มรุ่น/หลักสูตรใหม่' : 'แก้ไขรุ่น/หลักสูตร';
-                let cData = { code: '', name: '', quarter: '1-2', hours: '', trainees: 20, person: '', date: '', status: 'รอเปิดอบรม' };
+                let cData = { code: '', name: presetCourseName, quarter: '1-2', hours: '', trainees: 20, person: '', date: '', status: 'รอเปิดอบรม' };
                 
                 if (type === 'editCourse') {
                     const p = appData.find(x => x.id === pId);
@@ -760,7 +807,8 @@
                 if (type === 'addProject') {
                     await addDoc(getProjectsCol(), {
                         projectName: document.getElementById('inp_pName').value,
-                        mainActivities: []
+                        mainActivities: [],
+                        createdAt: Date.now() // เพิ่มเวลาที่สร้างเพื่อให้ข้อมูลไปอยู่ท้ายสุดเสมอ
                     });
                 } 
                 else if (type === 'editProject') {
@@ -957,8 +1005,10 @@
 
                     const projectsArray = Object.values(projectsMap);
                     let importedCount = 0;
+                    let baseTime = Date.now();
                     
                     for (const project of projectsArray) {
+                         project.createdAt = baseTime++; // เพิ่มเวลาสร้างแบบเรียงลำดับจากการ import
                          await addDoc(getProjectsCol(), project);
                          importedCount++;
                     }
@@ -985,7 +1035,7 @@
             const rowsConfig = []; // เก็บความสูงของบรรทัด (Row heights)
 
             // ----------------------------------------------------
-            // 🎨 การกำหนด Styles ต่างๆ ของเซลล์ใน Excel
+            // 🎨 การกำหนด Styles พื้นฐาน ของเซลล์ใน Excel
             // ----------------------------------------------------
             const borderAll = {
                 top: { style: "thin", color: { auto: 1 } },
@@ -1005,13 +1055,13 @@
                 border: borderAll
             };
 
-            const styleDataCenter = {
+            const styleDataCenterBase = {
                 font: { name: 'Sarabun', sz: 11 },
                 alignment: { horizontal: "center", vertical: "center" },
                 border: borderAll
             };
 
-            const styleDataLeft = {
+            const styleDataLeftBase = {
                 font: { name: 'Sarabun', sz: 11 },
                 alignment: { horizontal: "left", vertical: "center" },
                 border: borderAll
@@ -1059,21 +1109,39 @@
                         ]);
                         rowsConfig.push({ hpt: 25 });
 
-                        // แถวที่ 5 เป็นต้นไป: ข้อมูลหลักสูตร (มีเส้นตีกรอบ)
+                        // แถวที่ 5 เป็นต้นไป: ข้อมูลหลักสูตร (มีเส้นตีกรอบ พร้อมลงสีตามเงื่อนไข)
                         subAct.courses.forEach(course => {
                             let qLabel = course.quarter || '1-2';
                             if (qLabel === '1' || qLabel === '2') qLabel = '1-2';
 
+                            // --- ตรวจสอบสถานะและลงสี (เขียว / เทา) ---
+                            let statusText = course.status || 'รอเปิดอบรม';
+                            let cellStatusStyle = JSON.parse(JSON.stringify(styleDataCenterBase)); // ทำสำเนา Style พื้นฐาน
+                            
+                            if (statusText === 'เสร็จสิ้น') {
+                                cellStatusStyle.fill = { fgColor: { rgb: "A9D08E" } }; // สีเขียว
+                            } else if (statusText === 'รอเปิดอบรม' || statusText === 'รอดำเนินการ' || statusText === 'กำลังดำเนินการ') {
+                                cellStatusStyle.fill = { fgColor: { rgb: "D9D9D9" } }; // สีเทา
+                            }
+
+                            // --- ตรวจสอบชื่อหลักสูตรและลงสี (ส้ม) ---
+                            let courseNameText = course.courseName || '-';
+                            let cellCourseStyle = JSON.parse(JSON.stringify(styleDataLeftBase)); // ทำสำเนา Style พื้นฐาน
+                            
+                            if (courseNameText.includes('รองบ')) {
+                                cellCourseStyle.fill = { fgColor: { rgb: "F4B084" } }; // สีส้ม
+                            }
+
                             aoaData.push([
                                 "", "", "", // เว้นว่าง 3 คอลัมน์แรกเพื่อให้เยื้อง
-                                { v: `Q${qLabel}`, t: 's', s: styleDataCenter },
-                                { v: course.courseCode || '-', t: 's', s: styleDataCenter },
-                                { v: course.courseName || '-', t: 's', s: styleDataLeft },
-                                { v: course.hours || '-', t: 's', s: styleDataCenter },
-                                { v: course.hasOwnProperty('trainees') ? course.trainees : 20, t: 'n', s: styleDataCenter },
-                                { v: course.responsiblePerson || '-', t: 's', s: styleDataLeft },
-                                { v: course.trainingDate || '-', t: 's', s: styleDataCenter },
-                                { v: course.status || 'รอเปิดอบรม', t: 's', s: styleDataCenter }
+                                { v: `Q${qLabel}`, t: 's', s: styleDataCenterBase },
+                                { v: course.courseCode || '-', t: 's', s: styleDataCenterBase },
+                                { v: courseNameText, t: 's', s: cellCourseStyle }, // ใช้ style ที่ใส่สีแล้ว
+                                { v: course.hours || '-', t: 's', s: styleDataCenterBase },
+                                { v: course.hasOwnProperty('trainees') ? course.trainees : 20, t: 'n', s: styleDataCenterBase },
+                                { v: course.responsiblePerson || '-', t: 's', s: styleDataLeftBase },
+                                { v: course.trainingDate || '-', t: 's', s: styleDataCenterBase },
+                                { v: statusText, t: 's', s: cellStatusStyle } // ใช้ style ที่ใส่สีแล้ว
                             ]);
                             rowsConfig.push({ hpt: 20 });
                         });
@@ -1090,14 +1158,14 @@
             
             // 📏 ปรับความกว้างของคอลัมน์ (Column Widths)
             worksheet['!cols'] = [
-                { wch: 45 }, // A: โครงการ
-                { wch: 45 }, // B: กิจกรรมหลัก
-                { wch: 40 }, // C: กิจกรรมย่อย
-                { wch: 12 }, // D: ไตรมาส
+                { wch: 5 },  // A: โครงการ (กำหนดขนาดเป็น 5)
+                { wch: 5 },  // B: กิจกรรมหลัก (กำหนดขนาดเป็น 5)
+                { wch: 5 },  // C: กิจกรรมย่อย (กำหนดขนาดเป็น 5)
+                { wch: 10 }, // D: ไตรมาส
                 { wch: 15 }, // E: รหัสหลักสูตร
-                { wch: 55 }, // F: ชื่อหลักสูตร
-                { wch: 12 }, // G: ชั่วโมง
-                { wch: 12 }, // H: จำนวนคน
+                { wch: 50 }, // F: ชื่อหลักสูตร
+                { wch: 10 }, // G: ชั่วโมง
+                { wch: 10 }, // H: จำนวนคน
                 { wch: 25 }, // I: ผู้รับผิดชอบ
                 { wch: 20 }, // J: วันเวลา
                 { wch: 15 }  // K: สถานะ
@@ -1114,6 +1182,168 @@
             const fileName = `ข้อมูลการฝึกอบรม_${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}.xlsx`;
 
             XLSX.writeFile(workbook, fileName);
+        };
+
+        // ==========================================
+        // Gemini API AI Features
+        // ==========================================
+        const geminiApiKey = ""; // API Key will be injected by the environment
+
+        // Core API Call with Retry Logic
+        async function fetchGemini(prompt, isJsonMode = false) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${geminiApiKey}`;
+            
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: {
+                    parts: [{ text: "You are a helpful assistant for a Thai training and labor development department. Provide concise and accurate answers." }]
+                }
+            };
+
+            if (isJsonMode) {
+                payload.generationConfig = {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "ARRAY",
+                        items: { type: "STRING" }
+                    }
+                };
+            }
+
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            
+            for (let i = 0; i < delays.length; i++) {
+                try {
+                    const response = await fetch(url, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const result = await response.json();
+                    if (result.candidates && result.candidates[0].content.parts[0].text) {
+                        return result.candidates[0].content.parts[0].text;
+                    }
+                    throw new Error("Invalid response format");
+                } catch (error) {
+                    if (i === delays.length - 1) {
+                        console.error("Gemini API completely failed after retries:", error);
+                        return null;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delays[i]));
+                }
+            }
+            return null;
+        }
+
+        // Modal Handlers
+        window.closeAiModal = () => {
+            document.getElementById('aiModal').classList.add('hidden-safely');
+        };
+
+        window.openAiModal = (title, contentHTML = null) => {
+            document.getElementById('aiModalTitle').innerHTML = `✨ ${title}`;
+            
+            if (contentHTML) {
+                document.getElementById('aiModalBody').innerHTML = contentHTML;
+            } else {
+                document.getElementById('aiModalBody').innerHTML = `
+                    <div class="text-center py-8">
+                        <i class="fa-solid fa-sparkles fa-spin text-4xl text-purple-400 mb-4"></i>
+                        <p class="text-purple-600 font-medium">กำลังประมวลผลด้วย Gemini AI...</p>
+                    </div>`;
+            }
+            document.getElementById('aiModal').classList.remove('hidden-safely');
+        };
+
+        // Feature 1: Dashboard Analytics Summary
+        window.generateAiSummary = async () => {
+            if (!appData || appData.length === 0) {
+                alert("ยังไม่มีข้อมูลโครงการให้วิเคราะห์ครับ");
+                return;
+            }
+
+            window.openAiModal("AI วิเคราะห์ภาพรวมโครงการ");
+
+            // Extract lightweight summary data to avoid massive prompts
+            const summaryData = {
+                totalProjects: appData.length,
+                coursesBreakdown: []
+            };
+
+            appData.forEach(p => {
+                p.mainActivities.forEach(ma => {
+                    (ma.subActivities || []).forEach(sa => {
+                        (sa.courses || []).forEach(c => {
+                            summaryData.coursesBreakdown.push({
+                                quarter: c.quarter,
+                                status: c.status,
+                                trainees: c.trainees
+                            });
+                        });
+                    });
+                });
+            });
+
+            const prompt = `ในฐานะผู้เชี่ยวชาญด้านการพัฒนาฝีมือแรงงาน โปรดวิเคราะห์ข้อมูลภาพรวมของการฝึกอบรมต่อไปนี้ 
+            แล้วเขียนสรุปผลที่น่าสนใจ (เช่น ไตรมาสไหนเปิดเยอะสุด สถานะส่วนใหญ่เป็นอย่างไร แนวโน้มจำนวนคน) 
+            พร้อมข้อเสนอแนะเชิงกลยุทธ์ 2-3 ข้อ 
+            ตอบกลับเป็นภาษาไทยแบบกระชับ อ่านง่าย และจัดรูปแบบ HTML เบื้องต้น (ใช้ <ul>, <li>, <strong>)
+            
+            ข้อมูลดิบ:
+            ${JSON.stringify(summaryData)}`;
+
+            const resultText = await fetchGemini(prompt, false);
+
+            if (resultText) {
+                document.getElementById('aiModalBody').innerHTML = resultText.replace(/```html|```/g, '').trim();
+            } else {
+                document.getElementById('aiModalBody').innerHTML = `<p class="text-red-500 text-center">เกิดข้อผิดพลาดในการเชื่อมต่อ AI โปรดลองอีกครั้ง</p>`;
+            }
+        };
+
+        // Feature 2: Course Idea Suggestion based on Sub-Activity topic
+        window.openAiCourseSuggestModal = async (pId, mId, sId, topic) => {
+            window.openAiModal(`AI ช่วยคิดหลักสูตรสำหรับหัวข้อ: <span class="font-normal">"${topic}"</span>`);
+
+            const prompt = `ในฐานะผู้ออกแบบหลักสูตรฝึกอบรม โปรดแนะนำชื่อหลักสูตรที่น่าสนใจและทันสมัยจำนวน 3 หลักสูตร 
+            ที่เกี่ยวข้องโดยตรงกับหัวข้อกิจกรรมย่อย "${topic}" 
+            ตอบกลับในรูปแบบ JSON Array ของ String เท่านั้น ห้ามพิมพ์ข้อความอื่นใดๆนอกจาก JSON ตัวอย่าง: ["ชื่อที่ 1", "ชื่อที่ 2", "ชื่อที่ 3"]`;
+
+            const resultText = await fetchGemini(prompt, true);
+
+            if (resultText) {
+                try {
+                    // Attempt to parse JSON strictly
+                    const courses = JSON.parse(resultText);
+                    
+                    let buttonsHtml = courses.map(courseName => `
+                        <button onclick="window.selectAiCourse('${pId}', '${mId}', '${sId}', '${courseName.replace(/'/g, "\\'")}')" 
+                                class="w-full text-left p-3 mb-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-lg transition-colors text-slate-700 flex items-center justify-between group">
+                            <span><i class="fa-solid fa-lightbulb text-purple-400 mr-2"></i> ${courseName}</span>
+                            <span class="text-xs text-purple-600 bg-white px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">นำไปใช้</span>
+                        </button>
+                    `).join('');
+
+                    document.getElementById('aiModalBody').innerHTML = `
+                        <p class="mb-4 text-sm text-slate-500">นี่คือชื่อหลักสูตรที่ AI แนะนำ เลือกเพื่อนำไปสร้างหลักสูตรได้เลย:</p>
+                        ${buttonsHtml}
+                    `;
+                } catch (e) {
+                    console.error("JSON Parse Error:", e, resultText);
+                    document.getElementById('aiModalBody').innerHTML = `<p class="text-red-500 text-center">เกิดข้อผิดพลาดในการประมวลผลข้อมูล โปรดลองอีกครั้ง</p>`;
+                }
+            } else {
+                document.getElementById('aiModalBody').innerHTML = `<p class="text-red-500 text-center">เกิดข้อผิดพลาดในการเชื่อมต่อ AI โปรดลองอีกครั้ง</p>`;
+            }
+        };
+
+        // Helper function for Feature 2
+        window.selectAiCourse = (pId, mId, sId, courseName) => {
+            closeAiModal();
+            openModal('addCourse', pId, mId, sId, '', courseName);
         };
 
     </script>
